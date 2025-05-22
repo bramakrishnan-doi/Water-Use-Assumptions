@@ -1,0 +1,568 @@
+---
+title: "Lower Basin Projected Water Use: 2025 - 2027"
+subtitle: "April 2025: Probable Maximum 24-Month Study"
+format:
+  docx:
+    mainfont: Arial # Sets the main font to Arial for Word output
+#    reference-doc: my-styles.docx # Add this line to use template
+---
+
+```{r setup, include=FALSE}
+# This chunk is for global R options and loading packages
+# Set echo=FALSE to hide code, warning=FALSE to hide warnings, message=FALSE to hide messages
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse) # To use tidyverse functions
+library(knitr)     # For kable tables
+library(readxl)
+
+##### Update file paths ######################
+file_path <- "C:/Temp/Projected State Use -APR25.xlsx"
+
+# file path for the Water Use Assumption SCT export excel file
+file_path2 <- "C:/Temp/APR25-Max.xlsx"
+
+# Update sheet name and data range for the Water Use Assumption SCT export
+sheet_name4 <- "Sheet1"
+data_range4 <- "A1:E49"
+##############################################
+
+## There sheet names and data ranges (for Projected State Use) should not be changed.
+sheet_name1 <- as.character(year(Sys.Date()))
+sheet_name2 <- as.character(year(Sys.Date())+1)
+sheet_name3 <- as.character(year(Sys.Date())+2)
+data_range1 <- "A1:D58" # MOST Data range
+data_range2 <- "F1:I58" # MIN Data range
+data_range3 <- "K1:N58" # MAX Data range
+# Conservation data ranges
+rangeCA = "AH4:AM20"
+rangeNonCAWCD = "Z4:AE20"
+rangeCAWCD = "R4:W20"
+
+sheet_cons = "System Conservation"
+
+# Function to read Projected State Use excel data and process it
+process_excel_data <- function(file_path_arg, sheet_name_arg, data_range_arg) {
+  
+  excel_data <- tryCatch({
+    readxl::read_excel(path = file_path_arg, sheet = sheet_name_arg, range = data_range_arg)
+  }, error = function(e) {
+    stop(paste("Error reading Excel file:", e$message))
+    return(NULL) # Should not reach here due to stop()
+  })
+  
+  if (is.null(excel_data) || nrow(excel_data) == 0) {
+    warning("Excel data is NULL or empty after reading. Returning NULL.")
+    return(NULL)
+  }
+  # Store original number of columns for checks
+  original_ncol <- ncol(excel_data)
+  
+  # Rename column 2 to "value"
+  if (original_ncol >= 2) {
+    names(excel_data)[2] <- "value"
+  } else {
+    warning("Not enough columns to rename column 2 to 'value'. Expected at least 2 columns.")
+    # Depending on desired behavior, you might stop or return excel_data as is, or NULL.
+    # For now, we'll proceed but subsequent operations might fail or be incorrect.
+  }
+  
+  # Rename column 4 to "notes"
+  if (original_ncol >= 4) {
+    names(excel_data)[4] <- "notes"
+  } else {
+    warning("Not enough columns to rename column 4 to 'notes'. Expected at least 4 columns.")
+  }
+  
+  # Remove the original 3rd column
+  if (original_ncol >= 3) {
+    excel_data <- excel_data[, -3, drop = FALSE] # drop = FALSE ensures it remains a data.frame/tibble
+  } else {
+    warning("Not enough columns to remove the 3rd column. Expected at least 3 columns.")
+  }
+  
+  # Rename the first column
+  if (ncol(excel_data) >= 1 && !is.null(names(excel_data)[1]) && !is.na(names(excel_data)[1])) {
+    current_name_col1 <- names(excel_data)[1]
+    words <- strsplit(current_name_col1, "\\s+")[[1]]
+    words_to_use <- words[words != "" & !is.na(words)] # Remove empty strings and NAs
+    if (length(words_to_use) > 0) {
+      num_words_to_take <- min(3, length(words_to_use))
+      selected_words <- words_to_use[1:num_words_to_take]
+      new_name_col1 <- paste(selected_words, collapse = "_")
+      names(excel_data)[1] <- new_name_col1
+    } else {
+      warning("First column name was empty or only whitespace after splitting. Not renaming.")
+    }
+  } else {
+    warning("Could not rename the first column (it may not exist or its name is problematic).")
+  }
+  
+  excel_data = remove_all_na_rows(excel_data)
+  
+  # # Remove Rows Where All Values are NA ---
+  # if (nrow(excel_data) > 0) {
+  #   # apply works row-wise (MARGIN = 1)
+  #   # For each row, function(row_values) checks if all elements in that row are NA
+  #   all_na_rows_logical <- apply(excel_data, 1, function(row_values) all(is.na(row_values)))
+  #   excel_data <- excel_data[!all_na_rows_logical, , drop = FALSE]
+  # }
+  
+  # Add Row Numbers ---
+  # Add this step only if there are rows remaining after cleaning
+  if (nrow(excel_data) > 0) {
+    excel_data$Row_Num <- 1:nrow(excel_data)
+  }
+  
+  return(excel_data)
+}
+
+########## Function to find rows containing a string ####################
+
+find_rows_containing_string <- function(data_tibble, search_term) {
+  # --- Input Validations ---
+  if (!is.data.frame(data_tibble)) {
+    stop("Input 'data_tibble' must be a data frame or tibble.")
+  }
+  if (!is.character(search_term) || length(search_term) != 1) {
+    stop("Input 'search_term' must be a single string.")
+  }
+  
+  # Ensure dplyr is available
+  if (!requireNamespace("dplyr", quietly = TRUE)) {
+    stop("The 'dplyr' package is required for this function. Please install it using install.packages('dplyr').")
+  }
+  
+  # Handle empty data_tibble
+  if (nrow(data_tibble) == 0) {
+    # message("Input 'data_tibble' is empty. Returning an empty tibble.")
+    return(data_tibble[FALSE, ]) # Return empty tibble with same columns
+  }
+  
+  # Handle empty search_term (optional: could also return all rows or error)
+  if (nchar(search_term) == 0) {
+    # message("Warning: 'search_term' is an empty string. This may lead to unexpected matches. Returning an empty tibble.")
+    return(data_tibble[FALSE, ]) # Or handle as per desired behavior
+  }
+  
+  # --- Identify Character Columns ---
+  # We'll try to search in columns that are character or can be reasonably coerced to character (like factors)
+  # For simplicity, we'll focus on columns dplyr::if_any can process with as.character()
+  # Get names of columns that are character or factor
+  target_col_names <- names(data_tibble)[sapply(data_tibble, function(col) is.character(col) || is.factor(col))]
+  
+  
+  if (length(target_col_names) == 0) {
+    # message("No character or factor columns found in 'data_tibble' to search within. Returning an empty tibble.")
+    return(data_tibble[FALSE, ])
+  }
+  
+  # --- Perform Search using dplyr ---
+  # The dplyr::if_any function allows checking a condition across multiple columns.
+  # For each row, it will be TRUE if the lambda function returns TRUE for any of the specified columns.
+  result_tibble <- data_tibble %>%
+    dplyr::filter(
+      dplyr::if_any(dplyr::all_of(target_col_names), function(column_content) {
+        # Inside this function, 'column_content' refers to the vector of values for the current column being processed.
+        
+        # Convert column to character (handles factors as well) and trim whitespace
+        cleaned_content <- trimws(as.character(column_content))
+        
+        # Perform case-insensitive literal search by converting both to lower case first
+        lower_cleaned_content <- tolower(cleaned_content)
+        lower_search_term <- tolower(search_term)
+        
+        # Now perform a fixed (literal) search on the lowercased strings.
+        # ignore.case is no longer needed here and fixed = TRUE can be safely used.
+        matches <- grepl(lower_search_term, lower_cleaned_content, fixed = TRUE)
+        
+        # Important: grepl returns NA if the content is NA.
+        # For filtering, we want NA content to result in FALSE (no match).
+        matches[is.na(matches)] <- FALSE
+        
+        matches # Return the logical vector of matches for this column
+      })
+    )
+  
+  return(result_tibble)
+}
+
+################################################################
+remove_all_na_rows <- function(input_tibble) {
+  # Check if the input is a tibble or data frame
+  if (!is.data.frame(input_tibble)) {
+    stop("Input must be a tibble or data frame.")
+  }
+
+  # Use filter with across() and a helper function to check if all values in a row are NA
+  # The `!.all(is.na(.))` part means "not all values are NA" for the selected columns.
+  # `across(everything())` applies this check to all columns.
+  cleaned_tibble <- input_tibble %>%
+    filter(!rowSums(is.na(across(everything()))) == ncol(input_tibble))
+    # An alternative using if_all (requires dplyr 1.0.0 or later):
+    # filter(!if_all(everything(), is.na))
+
+
+  return(cleaned_tibble)
+}
+#####################################################
+
+# Read MAX data
+#Current Year
+Max1 <- process_excel_data(file_path, sheet_name1, data_range3)
+
+#First Out year
+Max2 <- process_excel_data(file_path, sheet_name2, data_range3)
+
+#Second Out Year
+Max3 <- process_excel_data(file_path, sheet_name3, data_range3)
+
+# Get SCT data
+if (!file.exists(file_path2)) {
+  stop(paste("Error: The file was not found at the specified path:", file_path2))
+}
+
+sct_data <- read_excel(path = file_path2, sheet = sheet_name4, range = data_range4)
+
+sct_data <- sct_data[, -2]
+
+if (ncol(sct_data) == 4) {
+  # Get the current year
+  current_year <- year(Sys.Date()) # Using lubridate's year() function
+  
+  # Define the new column names
+  new_column_names <- c(
+    "Item",
+    paste0("CY", current_year),
+    paste0("CY", current_year + 1),
+    paste0("CY", current_year + 2)
+  )
+  
+  # Assign the new names to excel_data2
+  names(sct_data) <- new_column_names
+  
+} else {
+  warning(paste("Warning: sct_data does not have the expected 4 columns after deletion. It has", 
+                ncol(sct_data), "columns. Column renaming might be incorrect."))
+}
+
+apportionment <- sct_data %>% 
+  filter(
+    str_detect(Item,
+               regex(
+                 "California_Apportionment|.AzTotalAnnual|.NvTotalAnnual"
+                 )
+               )
+    ) 
+
+#round(sum(apportionment[,2])/1000000,3)
+
+mwdICSY1 = ifelse(find_rows_containing_string(sct_data,"MWD_Default")[1,2],
+               paste0("creation of ", 
+                      round(find_rows_containing_string(sct_data,"MWD_Default")[1,2]/1000,1)),
+               paste0("delivery of ", 
+                      round(find_rows_containing_string(sct_data,"MWD_Default")[2,2]/1000,1)))
+
+mwdICSY2 = ifelse(find_rows_containing_string(sct_data,"MWD_Default")[1,3],
+               paste0("creation of ", 
+                      round(find_rows_containing_string(sct_data,"MWD_Default")[1,3]/1000,1)),
+               paste0("delivery of ", 
+                      round(find_rows_containing_string(sct_data,"MWD_Default")[2,3]/1000,1)))
+
+mwdICSY3 = ifelse(find_rows_containing_string(sct_data,"MWD_Default")[1,4],
+               paste0("creation of ", 
+                      round(find_rows_containing_string(sct_data,"MWD_Default")[1,4]/1000,1)),
+               paste0("delivery of ", 
+                      round(find_rows_containing_string(sct_data,"MWD_Default")[2,4]/1000,1)))
+
+cons_CA <- tryCatch({
+    readxl::read_excel(path = file_path, sheet = sheet_cons, range = rangeCA)
+  }, error = function(e) {
+    stop(paste("Error reading Excel file:", e$message))
+    return(NULL) # Should not reach here due to stop()
+  })
+
+cons_CA <- remove_all_na_rows(cons_CA)
+
+cons_NonCAWCD <- tryCatch({
+    readxl::read_excel(path = file_path, sheet = sheet_cons, range = rangeNonCAWCD)
+  }, error = function(e) {
+    stop(paste("Error reading Excel file:", e$message))
+    return(NULL) # Should not reach here due to stop()
+  })
+
+cons_NonCAWCDF <- cons_NonCAWCD %>% 
+  remove_all_na_rows() %>% 
+  slice_head(n = -1) %>% # Removes the last row (242 project)
+  summarise(across(where(is.numeric), \(x) sum(x, na.rm = TRUE))) # Sums only numeric columns
+
+cons242 <- find_rows_containing_string(cons_NonCAWCD, "242 Wellfield")
+
+current_year <- format(Sys.Date(), "%Y")
+column_number <- which(grepl(current_year, colnames(cons_CA)))
+
+# cons242[column_number]
+
+cons_CAWCD <- tryCatch({
+    readxl::read_excel(path = file_path, sheet = sheet_cons, range = rangeCAWCD)
+  }, error = function(e) {
+    stop(paste("Error reading Excel file:", e$message))
+    return(NULL) # Should not reach here due to stop()
+  })
+
+cons_CAWCD <- cons_CAWCD %>%
+  remove_all_na_rows() 
+
+text_to_exclude = "CVWD"
+cons_CA_filt <- cons_CA %>%
+  filter(is.na(Contractor) | !str_detect(Contractor, fixed(text_to_exclude)))
+
+cons_CA_filt %>% 
+  filter(.[[column_number]] > 0) %>% 
+  select(1,all_of(column_number))
+
+
+
+# Example condition for conditional Markdown
+# Replace this with your actual condition
+show_2025_detailed_note <- TRUE 
+# show_2025_detailed_note <- (a == 3) # Another example condition
+
+```
+
+# 2025
+
+Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max1,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 1 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323.
+
+```{r conditional-2025-note, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if (exists("show_2025_detailed_note") && show_2025_detailed_note) {
+  cat("\n") # Ensures a new line before the conditional text
+  cat("**Important Note for 2025:** *This text is included based on an R condition.*\n")
+  cat("You can include any valid Markdown here, like:\n")
+  cat("- Bullet points\n")
+  cat("- **Bold text** or *italic text*\n")
+  cat("> Blockquotes\n")
+}
+```
+
+### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,2])/1000000,3))` maf
+
+#### California: `r sprintf("%.3f",round(sum(apportionment[1,2])/1000000,3))` maf
+* MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[2])/1000,0)` kaf
+    * Projected diversion includes the delivery of 132.1 kaf of ICS
+* Total California System Conservation of 430.7 kaf
+
+```{r generate-bullet-list-apply, results='asis'}
+# Check if result_dplyr has rows and at least two columns before proceeding
+if (nrow(cons_CA_filt) > 0 && ncol(cons_CA_filt) >= 2) {
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of result_dplyr
+  # row[2] will be the value from the second column of result_dplyr
+  bullet_points <- apply(cons_CA_filt, 1, function(row) {
+    paste0("  * ", row[1], ": ", row[2], " kaf\n")
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} else if (nrow(result_dplyr) == 0) {
+  cat("No data available in `result_dplyr` to create a list.")
+} else {
+  cat("`result_dplyr` does not have at least two columns as expected.")
+}
+```
+
+    * CVWD system conservation of 45 kaf
+    * IID system conservation of 250 kaf
+    * Bard system conservation of 5.7 kaf
+    * PVID system conservation of 117.0 kaf
+    * Quechan system conservation of 13.0 kaf
+* Needles PSCP volume of 145 af
+
+#### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,2])/1000000,3))` maf
+* CAP annual diversion of 774 kaf
+    * Projected diversion includes a Shortage volume of 320 kaf, a DCP contribution of 192 kaf by CAWCD, and ICS delivery of 37 kaf
+* DCP contribution will be made by creating 50 kaf of ICS and 142 kaf of non-ICS water
+* Total non-CAWCD System Conservation of 206.8 kaf
+    * FMYN: 13.9 kaf
+    * GRIC: 125 kaf
+    * Gabrych: 3.2 kaf
+    * MVIDD: 13.7 kaf
+    * YMIDD: 22.0 kaf
+    * CVIDD: 2.3 kaf
+    * Hopi: 3.1 kaf
+    * SCAT: 23.5 kaf
+    * Cathcart: 61 af
+* Total CAWCD System Conservation of 128.4 kaf
+    * ASARCO: 21 kaf
+    * Gilbert: 0.8 kaf
+    * Glendale: 7.0 kaf
+    * Metro Water District: 5.0 kaf
+    * Peoria: 7.2 kaf
+    * Phoenix: 50.0 kaf
+    * Scottsdale: 5.0 kaf
+    * Tucson: 30.0 kaf
+    * Spanish Trail Water Co.: 2.4 kaf
+* Bullhead City PSCP volume of 50 af
+* System water created by the 242 Well Field Expansion Project of 25 kaf
+
+#### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,2])/1000000,3))` maf
+* SNWA annual use of 196 kaf. Projected diversion includes:
+    * Shortage volume of 13 kaf
+* DCP contribution of 8 kaf through EC ICS conversion
+* Total System Conservation of 117 kaf
+    * Tributary conservation of 35 kaf
+    * Other system conservation of 82 kaf
+
+### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max1, "Mexico Use")$value)/1000000,3))` maf
+* Projected delivery includes:
+    * Shortage volume of 50 kaf
+    * Recoverable Water Savings Contribution of 30 kaf
+    * Minute 330 System Conservation of 120.6 kaf
+* Water Reserve delivery of 21.6 kaf
+* Water Reserve creation of 80.6 kaf
+
+# 2026
+
+Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max2,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 1 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323.
+
+### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,3])/1000000,3))` maf
+
+#### California: `r sprintf("%.3f",round(sum(apportionment[1,3])/1000000,3))` maf
+* MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[3])/1000,0)` kaf
+    * Projected diversion includes the delivery of 29.2 kaf of ICS
+* Total California System Conservation of 348.5 kaf
+    * CVWD system conservation of 45 kaf
+    * IID system conservation of 205 kaf
+    * Bard system conservation of 5.7 kaf
+    * PVID system conservation of 79.8 kaf
+    * Quechan system conservation of 13.0 kaf
+* Needles PSCP volume of 145 af
+* Binational ICS creation of 18.2 kaf to MWD and IID
+
+#### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,3])/1000000,3))` maf
+* CAP annual diversion of 838 kaf
+    * Projected diversion includes a Shortage volume of 320 kaf and a DCP contribution of 192 kaf by CAWCD
+* DCP contribution will be made by creating 50 kaf of ICS and 142 kaf of non-ICS water
+* Total non-CAWCD System Conservation of 134.2 kaf
+    * FMYN: 13.9 kaf
+    * GRIC: 51.7 kaf
+    * SCAT: 23.5 kaf
+    * Gabrych: 3.2 kaf
+    * MVIDD: 14.5 kaf
+    * Cathcart: 61 af
+    * YMIDD: 22.0 kaf
+    * CVIDD: 2.3 kaf
+    * Hopi: 3.1 kaf
+* Total CAWCD System Conservation of 101.0 kaf
+    * ASARCO: 21 kaf
+    * Gilbert: 1.6 kaf
+    * Glendale: 7 kaf
+    * Metro Water District: 5.0 kaf
+    * Peoria: 7.2 kaf
+    * Scottsdale: 4.0 kaf
+    * Tucson: 52.8 kaf
+    * Spanish Trail Water Co.: 2.4 kaf
+* Bullhead City PSCP volume of 400 af
+* System water created by the 242 Well Field Expansion Project of 25 kaf
+* Binational ICS creation of 18.2 kaf to CAWCD
+
+#### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,3])/1000000,3))` maf
+* SNWA annual use of 192 kaf. Projected diversion includes:
+    * Shortage volume of 13 kaf
+* DCP contribution of 8 kaf through EC ICS conversion
+* Total System Conservation of 121 kaf
+    * Tributary conservation: 35 kaf
+    * Other System Conservation: 86 kaf
+* Binational ICS creation of 18.2 kaf to SNWA
+
+### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max2, "Mexico Use")$value)/1000000,3))` maf
+* Projected delivery includes:
+    * Shortage volume of 50 kaf
+    * Recoverable Water Savings Contribution of 30 kaf
+    * Minute 330 System Conservation of 67 kaf
+
+# 2027
+
+Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max3,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 2 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323. For modeling purposes, simulated years beyond 2026 assume a continuation of the 2007 Interim Guidelines, the 2019 Colorado River Basin Drought Contingency Plans, and Minute 323, including the Binational Water Scarcity Contingency Plan. Except for certain provisions related to ICS recovery and Upper Basin demand management, operations under these agreements are in effect through 2026. Reclamation initiated the process to develop operations for post-2026 in June 2023, and the modeling assumptions described here are subject to change.
+
+### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,4])/1000000,3))` maf
+
+#### California: `r sprintf("%.3f",round(sum(apportionment[1,4])/1000000,3))` maf
+* MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[4])/1000,0)` kaf
+    * Projected diversion includes the delivery of 4.9 kaf of ICS
+* Needles PSCP volume of 145 af
+
+#### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,4])/1000000,3))` maf
+* CAP annual diversion of 980 kaf
+    * Projected diversion includes a Shortage volume of 400 kaf, a DCP contribution of 192 kaf by CAWCD, and ICS delivery of 79.5 kaf (54.5 kaf post-2026 delivery plus 25.0 kaf GRIC firming)
+* DCP contribution will be made by creating 50 kaf of ICS and 142 kaf of non-ICS water
+* Total non-CAWCD System Conservation of 20.6 kaf
+    * GRIC: 20.6 kaf
+* Total CAWCD System Conservation of 7.2 kaf
+    * Gilbert: 767 af
+    * Scottsdale: 2.8 kaf
+    * Tucson: 3.7 kaf
+* Bullhead City PSCP volume of 400 af
+
+#### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,4])/1000000,3))` maf
+* SNWA annual use of 186 kaf. Projected diversion includes:
+    * Shortage volume of 17 kaf
+    * EC ICS creation of 88 kaf
+* DCP contribution of 8 kaf through EC ICS conversion
+* Total System Conservation of 35 kaf
+    * Tributary conservation: 35 kaf
+
+### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max3, "Mexico Use")$value)/1000000,3))` maf
+* Projected delivery includes:
+    * Shortage volume of 70 kaf
+    * Recoverable Water Savings Contribution of 34 kaf
+
+## ICS Totals
+
+* Projected ICS Total Storage at the end of CY 2027: **2.687 maf**
+* Projected ICS Storage Balances at the end of each calendar year in the study are as follows:
+
+| State | 2025      | 2026      | 2027      |
+|-------|-----------|-----------|-----------|
+| AZ    | 616,332   | 683,215   | 648,710   |
+| CA    | 1,440,291 | 1,447,504 | 1,442,626 |
+| NV    | 498,522   | 516,704   | 595,904   |
+| Total | 2,555,145 | 2,647,423 | 2,687,240 |
+
+### ICS Totals Table (Formatted with R)
+
+Here's an example of how you could create the ICS Totals table using an R code chunk with the `knitr` package for a nicer output.
+
+```{r ics-table}
+# The global options echo=FALSE, warning=FALSE, message=FALSE from the setup chunk will apply here
+# Load the knitr package if you haven't in the setup chunk
+if (!requireNamespace("knitr", quietly = TRUE)) {
+  install.packages("knitr")
+}
+library(knitr)
+
+# Create a data frame for the ICS Totals
+ics_data <- data.frame(
+  State = c("AZ", "CA", "NV", "Total"),
+  `2025` = c(616332, 1440291, 498522, 2555145),
+  `2026` = c(683215, 1447504, 516704, 2647423),
+  `2027` = c(648710, 1442626, 595904, 2687240)
+)
+
+# Print the table using kable
+# For docx output, kable will automatically choose an appropriate format.
+# The 'format = "pipe"' is more for Markdown/HTML.
+# We can let kable decide or explicitly use 'format = "pandoc"' or 'format = "simple"' for wider compatibility if needed.
+kable(ics_data, caption = "Projected ICS Storage Balances (kaf)", col.names = c("State", "2025 (kaf)", "2026 (kaf)", "2027 (kaf)"))
+```
+
+## Notes and Disclaimers
+
+* Modeled Conservation volumes reflect executed agreements and/or current operational projections/assumptions and are subject to change. Additional conservation activities are being considered. After new agreements are finalized and executed, these additional activities will be included in Reclamation’s operational modeling.
+* Projected SEIS ROD Reservoir Protection Volume is 3.631 from 2023 through 2026.
+
