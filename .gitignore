@@ -36,6 +36,8 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
+# Temporary excel and word files
+~$*
 # R Environment Variables
 .Renviron
 
