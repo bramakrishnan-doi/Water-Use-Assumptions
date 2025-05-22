@@ -4,7 +4,7 @@ subtitle: "April 2025: Probable Maximum 24-Month Study"
 format:
   docx:
     mainfont: Arial # Sets the main font to Arial for Word output
-#    reference-doc: my-styles.docx # Add this line to use template
+    reference-doc: custom-reference-doc.docx # Use template
 ---
 
 ```{r setup, include=FALSE}
@@ -17,10 +17,10 @@ library(knitr)     # For kable tables
 library(readxl)
 
 ##### Update file paths ######################
-file_path <- "C:/Temp/Projected State Use -APR25.xlsx"
+file_path <- "data/Projected State Use -APR25.xlsx"
 
 # file path for the Water Use Assumption SCT export excel file
-file_path2 <- "C:/Temp/APR25-Max.xlsx"
+file_path2 <- "data/APR25-Max.xlsx"
 
 # Update sheet name and data range for the Water Use Assumption SCT export
 sheet_name4 <- "Sheet1"
@@ -330,7 +330,7 @@ show_2025_detailed_note <- TRUE
 
 ```
 
-# 2025
+### 2025
 
 Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max1,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 1 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323.
 
@@ -348,9 +348,9 @@ if (exists("show_2025_detailed_note") && show_2025_detailed_note) {
 }
 ```
 
-### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,2])/1000000,3))` maf
+#### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,2])/1000000,3))` maf
 
-#### California: `r sprintf("%.3f",round(sum(apportionment[1,2])/1000000,3))` maf
+##### California: `r sprintf("%.3f",round(sum(apportionment[1,2])/1000000,3))` maf
 * MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[2])/1000,0)` kaf
     * Projected diversion includes the delivery of 132.1 kaf of ICS
 * Total California System Conservation of 430.7 kaf
@@ -383,7 +383,7 @@ if (nrow(cons_CA_filt) > 0 && ncol(cons_CA_filt) >= 2) {
     * Quechan system conservation of 13.0 kaf
 * Needles PSCP volume of 145 af
 
-#### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,2])/1000000,3))` maf
+##### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,2])/1000000,3))` maf
 * CAP annual diversion of 774 kaf
     * Projected diversion includes a Shortage volume of 320 kaf, a DCP contribution of 192 kaf by CAWCD, and ICS delivery of 37 kaf
 * DCP contribution will be made by creating 50 kaf of ICS and 142 kaf of non-ICS water
@@ -410,7 +410,7 @@ if (nrow(cons_CA_filt) > 0 && ncol(cons_CA_filt) >= 2) {
 * Bullhead City PSCP volume of 50 af
 * System water created by the 242 Well Field Expansion Project of 25 kaf
 
-#### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,2])/1000000,3))` maf
+##### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,2])/1000000,3))` maf
 * SNWA annual use of 196 kaf. Projected diversion includes:
     * Shortage volume of 13 kaf
 * DCP contribution of 8 kaf through EC ICS conversion
@@ -418,7 +418,7 @@ if (nrow(cons_CA_filt) > 0 && ncol(cons_CA_filt) >= 2) {
     * Tributary conservation of 35 kaf
     * Other system conservation of 82 kaf
 
-### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max1, "Mexico Use")$value)/1000000,3))` maf
+#### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max1, "Mexico Use")$value)/1000000,3))` maf
 * Projected delivery includes:
     * Shortage volume of 50 kaf
     * Recoverable Water Savings Contribution of 30 kaf
@@ -426,13 +426,13 @@ if (nrow(cons_CA_filt) > 0 && ncol(cons_CA_filt) >= 2) {
 * Water Reserve delivery of 21.6 kaf
 * Water Reserve creation of 80.6 kaf
 
-# 2026
+### 2026
 
 Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max2,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 1 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323.
 
-### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,3])/1000000,3))` maf
+#### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,3])/1000000,3))` maf
 
-#### California: `r sprintf("%.3f",round(sum(apportionment[1,3])/1000000,3))` maf
+##### California: `r sprintf("%.3f",round(sum(apportionment[1,3])/1000000,3))` maf
 * MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[3])/1000,0)` kaf
     * Projected diversion includes the delivery of 29.2 kaf of ICS
 * Total California System Conservation of 348.5 kaf
@@ -444,7 +444,7 @@ Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_contai
 * Needles PSCP volume of 145 af
 * Binational ICS creation of 18.2 kaf to MWD and IID
 
-#### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,3])/1000000,3))` maf
+##### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,3])/1000000,3))` maf
 * CAP annual diversion of 838 kaf
     * Projected diversion includes a Shortage volume of 320 kaf and a DCP contribution of 192 kaf by CAWCD
 * DCP contribution will be made by creating 50 kaf of ICS and 142 kaf of non-ICS water
@@ -471,7 +471,7 @@ Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_contai
 * System water created by the 242 Well Field Expansion Project of 25 kaf
 * Binational ICS creation of 18.2 kaf to CAWCD
 
-#### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,3])/1000000,3))` maf
+##### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,3])/1000000,3))` maf
 * SNWA annual use of 192 kaf. Projected diversion includes:
     * Shortage volume of 13 kaf
 * DCP contribution of 8 kaf through EC ICS conversion
@@ -480,24 +480,24 @@ Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_contai
     * Other System Conservation: 86 kaf
 * Binational ICS creation of 18.2 kaf to SNWA
 
-### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max2, "Mexico Use")$value)/1000000,3))` maf
+#### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max2, "Mexico Use")$value)/1000000,3))` maf
 * Projected delivery includes:
     * Shortage volume of 50 kaf
     * Recoverable Water Savings Contribution of 30 kaf
     * Minute 330 System Conservation of 67 kaf
 
-# 2027
+### 2027
 
 Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max3,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 2 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323. For modeling purposes, simulated years beyond 2026 assume a continuation of the 2007 Interim Guidelines, the 2019 Colorado River Basin Drought Contingency Plans, and Minute 323, including the Binational Water Scarcity Contingency Plan. Except for certain provisions related to ICS recovery and Upper Basin demand management, operations under these agreements are in effect through 2026. Reclamation initiated the process to develop operations for post-2026 in June 2023, and the modeling assumptions described here are subject to change.
 
-### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,4])/1000000,3))` maf
+#### U.S. Contractors: `r sprintf("%.3f",round(sum(apportionment[,4])/1000000,3))` maf
 
-#### California: `r sprintf("%.3f",round(sum(apportionment[1,4])/1000000,3))` maf
+##### California: `r sprintf("%.3f",round(sum(apportionment[1,4])/1000000,3))` maf
 * MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[4])/1000,0)` kaf
     * Projected diversion includes the delivery of 4.9 kaf of ICS
 * Needles PSCP volume of 145 af
 
-#### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,4])/1000000,3))` maf
+##### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,4])/1000000,3))` maf
 * CAP annual diversion of 980 kaf
     * Projected diversion includes a Shortage volume of 400 kaf, a DCP contribution of 192 kaf by CAWCD, and ICS delivery of 79.5 kaf (54.5 kaf post-2026 delivery plus 25.0 kaf GRIC firming)
 * DCP contribution will be made by creating 50 kaf of ICS and 142 kaf of non-ICS water
@@ -509,7 +509,7 @@ Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_contai
     * Tucson: 3.7 kaf
 * Bullhead City PSCP volume of 400 af
 
-#### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,4])/1000000,3))` maf
+##### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,4])/1000000,3))` maf
 * SNWA annual use of 186 kaf. Projected diversion includes:
     * Shortage volume of 17 kaf
     * EC ICS creation of 88 kaf
@@ -517,12 +517,12 @@ Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_contai
 * Total System Conservation of 35 kaf
     * Tributary conservation: 35 kaf
 
-### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max3, "Mexico Use")$value)/1000000,3))` maf
+#### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max3, "Mexico Use")$value)/1000000,3))` maf
 * Projected delivery includes:
     * Shortage volume of 70 kaf
     * Recoverable Water Savings Contribution of 34 kaf
 
-## ICS Totals
+### ICS Totals
 
 * Projected ICS Total Storage at the end of CY 2027: **2.687 maf**
 * Projected ICS Storage Balances at the end of each calendar year in the study are as follows:
@@ -534,7 +534,7 @@ Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_contai
 | NV    | 498,522   | 516,704   | 595,904   |
 | Total | 2,555,145 | 2,647,423 | 2,687,240 |
 
-### ICS Totals Table (Formatted with R)
+#### ICS Totals Table (Formatted with R)
 
 Here's an example of how you could create the ICS Totals table using an R code chunk with the `knitr` package for a nicer output.
 
