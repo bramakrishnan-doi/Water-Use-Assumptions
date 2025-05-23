@@ -468,6 +468,9 @@ cons_NonCAWCD <- tryCatch({
 })
 
 cons_NonCAWCD <- remove_all_na_rows(cons_NonCAWCD)
+#remove 242
+cons_NonCAWCD_filt <- cons_NonCAWCD %>% 
+  slice_head(n = -1)
 cons_NonCAWCD_tot <- cons_NonCAWCD %>% 
   slice_head(n = -1) %>% 
   summarise(across(where(is.numeric), \(x) sum(x, na.rm = TRUE))) 
@@ -510,6 +513,17 @@ name_lookup <- c(
 updated_cons_CA_filt <- replace_items_conditional(cons_CA_filt , name_lookup)
 
 cons_CA_CY <- updated_cons_CA_filt %>% 
+  filter(.[[column_number]] > 0) %>% 
+  select(1,all_of(column_number))
+
+cons_CAWCD <- remove_all_na_rows(cons_CAWCD)
+
+cons_CAWCD_CY <- replace_items_conditional(cons_CAWCD, name_lookup) %>% 
+  filter(.[[column_number]] > 0) %>% 
+  select(1,all_of(column_number))
+
+cons_NonCAWCD_CY <- cons_NonCAWCD_filt %>% 
+  replace_items_conditional(name_lookup) %>% 
   filter(.[[column_number]] > 0) %>% 
   select(1,all_of(column_number))
 
@@ -575,7 +589,7 @@ if (nrow(cons_CA_CY) > 0 && ncol(cons_CA_CY) >= 2) {
 # This R code chunk will print Markdown text if the condition is met.
 # The 'results="asis"' option is crucial for this to work.
 
-if (exists("show_2025_detailed_note") && addreductions) {
+if (exists("addreductions") && addreductions) {
   #cat("\n") # Ensures a new line before the conditional text
   cat("    * Projected diversion includes a ")
   cat(reductions_scen_all)
@@ -590,34 +604,129 @@ az_dcpSys <- ifelse((az_dcpSys/1000) %% 1 != 0, round(az_dcpSys/1000, 1), round(
 ```
 
 * DCP contribution will be made by creating `r ifelse(az_dcpICS > 0, paste0(az_dcpICS, " kaf of ICS and ", az_dcpSys, " kaf of non-ICS water"), paste0(az_dcpSys, " kaf of non-ICS water"))` 
-* Total non-CAWCD System Conservation of 206.8 kaf
-    * FMYN: 13.9 kaf
-    * GRIC: 125 kaf
-    * Gabrych: 3.2 kaf
-    * MVIDD: 13.7 kaf
-    * YMIDD: 22.0 kaf
-    * CVIDD: 2.3 kaf
-    * Hopi: 3.1 kaf
-    * SCAT: 23.5 kaf
-    * Cathcart: 61 af
-* Total CAWCD System Conservation of 128.4 kaf
-    * ASARCO: 21 kaf
-    * Gilbert: 0.8 kaf
-    * Glendale: 7.0 kaf
-    * Metro Water District: 5.0 kaf
-    * Peoria: 7.2 kaf
-    * Phoenix: 50.0 kaf
-    * Scottsdale: 5.0 kaf
-    * Tucson: 30.0 kaf
-    * Spanish Trail Water Co.: 2.4 kaf
-* Bullhead City PSCP volume of 50 af
-* System water created by the 242 Well Field Expansion Project of 25 kaf
+* Total non-CAWCD System Conservation of `r sprintf("%.1f",round(sum(cons_NonCAWCD_filt[,column_number])/1000,1))` kaf
+```{r generate-bullet-list-nonCAWCD, results='asis'}
+# Check if cons_CA_CY has rows and at least two columns before proceeding
+if (nrow(cons_NonCAWCD_CY) > 0 && ncol(cons_NonCAWCD_CY) >= 2) {
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of cons_CA_CY
+  # row[2] will be the value from the second column of cons_CA_CY
+  bullet_points <- apply(cons_NonCAWCD_CY, 1, function(row) {
+    paste0("  * ", row[1], " : ", ifelse(as.numeric(row[2])>100, paste0(round(as.numeric(row[2])/1000,1) , " kaf\n"), paste0(round(as.numeric(row[2]),0), " af\n") ))
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} else if (nrow(cons_NonCAWCD_CY) == 0) {
+  cat("No data available in `cons_NonCAWCD_CY` to create a list.")
+} else {
+  cat("`cons_NonCAWCD_CY` does not have at least two columns as expected.")
+}
+```
+
+* Total CAWCD System Conservation of `r sprintf("%.1f",round(sum(cons_CAWCD[,column_number])/1000,1))` kaf
+
+```{r generate-bullet-list-CAWCD, results='asis'}
+# Check if cons_CA_CY has rows and at least two columns before proceeding
+if (nrow(cons_CAWCD_CY) > 0 && ncol(cons_CAWCD_CY) >= 2) {
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of cons_CA_CY
+  # row[2] will be the value from the second column of cons_CA_CY
+  bullet_points <- apply(cons_CAWCD_CY, 1, function(row) {
+    paste0("  * ", row[1], " : ", ifelse(as.numeric(row[2])>100, paste0(round(as.numeric(row[2])/1000,1) , " kaf\n"), paste0(round(as.numeric(row[2]),0), " af\n") ))
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} else if (nrow(cons_CAWCD_CY) == 0) {
+  cat("No data available in `cons_CAWCD_CY` to create a list.")
+} else {
+  cat("`cons_CAWCD_CY` does not have at least two columns as expected.")
+}
+
+
+```
+
+* Bullhead City PSCP volume of `r as.numeric(find_rows_containing_string(Max1, "BHC")$value)*-1` af
+* System water created by the 242 Well Field Expansion Project of `r sprintf("%.1f",round(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number]/1000,1))` kaf
 
 ##### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,2])/1000000,3))` maf
-* SNWA annual use of 196 kaf. Projected diversion includes:
-    * Shortage volume of 13 kaf
-* DCP contribution of 8 kaf through EC ICS conversion
+* SNWA annual use of `r round(find_rows_containing_string(sct_data, "CAPAnnualFC")[1,2]/1000,0)` kaf. Projected diversion includes:
+
+```{r conditional-NV-Shortage, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,2]>0){
+  addNVShortage = TRUE
+  nvshort = unlist(unname(round(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,2]/1000,0)))
+} else{
+  addNVShortage = FALSE
+  nvshort=""
+}
+
+if (exists("addNVShortage") && addNVShortage) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Shortage volume of ")
+  cat(nvshort)
+  cat(" kaf\n")
+}
+
+
+```
+    * Shortage volume of `r round(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,2]/1000,0)` kaf
+
+```{r conditional-NV-DCP, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if(find_rows_containing_string(sct_data, "AnnualCreationDCP_NV")[1,2]>0){
+  addNVDCP = TRUE
+  nvdcp = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationDCP_NV")[1,2]/1000,0)))
+} else{
+  addNVDCP = FALSE
+  nvdcp=""
+}
+
+if (exists("addNVDCP") && addNVDCP) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("* DCP contribution of ")
+  cat(nvdcp)
+  cat(" kaf through EC ICS conversion\n")
+}
+
+
+```
+
 * Total System Conservation of 117 kaf
+```{r conditional-NV-SysCons, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if(find_rows_containing_string(sct_data, "NV_SystemConservation")[1,2]>0){
+  addNVDCP = TRUE
+  nvdcp = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationDCP_NV")[1,2]/1000,0)))
+} else{
+  addNVDCP = FALSE
+  nvdcp=""
+}
+
+
+
+if (exists("addNVDCP") && addNVDCP) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("* DCP contribution of ")
+  cat(nvdcp)
+  cat(" kaf through EC ICS conversion\n")
+  cat("  *")
+}
+
+
+```
     * Tributary conservation of 35 kaf
     * Other system conservation of 82 kaf
 
