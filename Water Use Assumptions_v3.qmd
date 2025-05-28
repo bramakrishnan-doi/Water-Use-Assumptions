@@ -16,6 +16,8 @@ library(tidyverse) # To use tidyverse functions
 library(knitr)     # For kable tables
 library(readxl)
 
+source("helper-functions.R")
+
 ##### Update file paths ######################
 file_path <- "data/Projected State Use -APR25.xlsx"
 
@@ -42,173 +44,7 @@ rangeCAWCD = "R4:W20"
 sheet_cons = "System Conservation"
 
 #####################################################################
-# Function to read Projected State Use excel data and process it
-process_excel_data <- function(file_path_arg, sheet_name_arg, data_range_arg) {
-  
-  excel_data <- tryCatch({
-    readxl::read_excel(path = file_path_arg, sheet = sheet_name_arg, range = data_range_arg)
-  }, error = function(e) {
-    stop(paste("Error reading Excel file:", e$message))
-    return(NULL) # Should not reach here due to stop()
-  })
-  
-  if (is.null(excel_data) || nrow(excel_data) == 0) {
-    warning("Excel data is NULL or empty after reading. Returning NULL.")
-    return(NULL)
-  }
-  # Store original number of columns for checks
-  original_ncol <- ncol(excel_data)
-  
-  # Rename column 2 to "value"
-  if (original_ncol >= 2) {
-    names(excel_data)[2] <- "value"
-  } else {
-    warning("Not enough columns to rename column 2 to 'value'. Expected at least 2 columns.")
-    # Depending on desired behavior, you might stop or return excel_data as is, or NULL.
-    # For now, we'll proceed but subsequent operations might fail or be incorrect.
-  }
-  
-  # Rename column 4 to "notes"
-  if (original_ncol >= 4) {
-    names(excel_data)[4] <- "notes"
-  } else {
-    warning("Not enough columns to rename column 4 to 'notes'. Expected at least 4 columns.")
-  }
-  
-  # Remove the original 3rd column
-  if (original_ncol >= 3) {
-    excel_data <- excel_data[, -3, drop = FALSE] # drop = FALSE ensures it remains a data.frame/tibble
-  } else {
-    warning("Not enough columns to remove the 3rd column. Expected at least 3 columns.")
-  }
-  
-  # Rename the first column
-  if (ncol(excel_data) >= 1 && !is.null(names(excel_data)[1]) && !is.na(names(excel_data)[1])) {
-    current_name_col1 <- names(excel_data)[1]
-    words <- strsplit(current_name_col1, "\\s+")[[1]]
-    words_to_use <- words[words != "" & !is.na(words)] # Remove empty strings and NAs
-    if (length(words_to_use) > 0) {
-      num_words_to_take <- min(3, length(words_to_use))
-      selected_words <- words_to_use[1:num_words_to_take]
-      new_name_col1 <- paste(selected_words, collapse = "_")
-      names(excel_data)[1] <- new_name_col1
-    } else {
-      warning("First column name was empty or only whitespace after splitting. Not renaming.")
-    }
-  } else {
-    warning("Could not rename the first column (it may not exist or its name is problematic).")
-  }
-  
-  excel_data = remove_all_na_rows(excel_data)
-  
-  # # Remove Rows Where All Values are NA ---
-  # if (nrow(excel_data) > 0) {
-  #   # apply works row-wise (MARGIN = 1)
-  #   # For each row, function(row_values) checks if all elements in that row are NA
-  #   all_na_rows_logical <- apply(excel_data, 1, function(row_values) all(is.na(row_values)))
-  #   excel_data <- excel_data[!all_na_rows_logical, , drop = FALSE]
-  # }
-  
-  # Add Row Numbers ---
-  # Add this step only if there are rows remaining after cleaning
-  if (nrow(excel_data) > 0) {
-    excel_data$Row_Num <- 1:nrow(excel_data)
-  }
-  
-  return(excel_data)
-}
 
-#########################################################################
-
-########## Function to find rows containing a string ####################
-
-find_rows_containing_string <- function(data_tibble, search_term) {
-  # --- Input Validations ---
-  if (!is.data.frame(data_tibble)) {
-    stop("Input 'data_tibble' must be a data frame or tibble.")
-  }
-  if (!is.character(search_term) || length(search_term) != 1) {
-    stop("Input 'search_term' must be a single string.")
-  }
-  
-  # Ensure dplyr is available
-  if (!requireNamespace("dplyr", quietly = TRUE)) {
-    stop("The 'dplyr' package is required for this function. Please install it using install.packages('dplyr').")
-  }
-  
-  # Handle empty data_tibble
-  if (nrow(data_tibble) == 0) {
-    # message("Input 'data_tibble' is empty. Returning an empty tibble.")
-    return(data_tibble[FALSE, ]) # Return empty tibble with same columns
-  }
-  
-  # Handle empty search_term (optional: could also return all rows or error)
-  if (nchar(search_term) == 0) {
-    # message("Warning: 'search_term' is an empty string. This may lead to unexpected matches. Returning an empty tibble.")
-    return(data_tibble[FALSE, ]) # Or handle as per desired behavior
-  }
-  
-  # --- Identify Character Columns ---
-  # We'll try to search in columns that are character or can be reasonably coerced to character (like factors)
-  # For simplicity, we'll focus on columns dplyr::if_any can process with as.character()
-  # Get names of columns that are character or factor
-  target_col_names <- names(data_tibble)[sapply(data_tibble, function(col) is.character(col) || is.factor(col))]
-  
-  
-  if (length(target_col_names) == 0) {
-    # message("No character or factor columns found in 'data_tibble' to search within. Returning an empty tibble.")
-    return(data_tibble[FALSE, ])
-  }
-  
-  # --- Perform Search using dplyr ---
-  # The dplyr::if_any function allows checking a condition across multiple columns.
-  # For each row, it will be TRUE if the lambda function returns TRUE for any of the specified columns.
-  result_tibble <- data_tibble %>%
-    dplyr::filter(
-      dplyr::if_any(dplyr::all_of(target_col_names), function(column_content) {
-        # Inside this function, 'column_content' refers to the vector of values for the current column being processed.
-        
-        # Convert column to character (handles factors as well) and trim whitespace
-        cleaned_content <- trimws(as.character(column_content))
-        
-        # Perform case-insensitive literal search by converting both to lower case first
-        lower_cleaned_content <- tolower(cleaned_content)
-        lower_search_term <- tolower(search_term)
-        
-        # Now perform a fixed (literal) search on the lowercased strings.
-        # ignore.case is no longer needed here and fixed = TRUE can be safely used.
-        matches <- grepl(lower_search_term, lower_cleaned_content, fixed = TRUE)
-        
-        # Important: grepl returns NA if the content is NA.
-        # For filtering, we want NA content to result in FALSE (no match).
-        matches[is.na(matches)] <- FALSE
-        
-        matches # Return the logical vector of matches for this column
-      })
-    )
-  
-  return(result_tibble)
-}
-
-################################################################
-remove_all_na_rows <- function(input_tibble) {
-  # Check if the input is a tibble or data frame
-  if (!is.data.frame(input_tibble)) {
-    stop("Input must be a tibble or data frame.")
-  }
-
-  # Use filter with across() and a helper function to check if all values in a row are NA
-  # The `!.all(is.na(.))` part means "not all values are NA" for the selected columns.
-  # `across(everything())` applies this check to all columns.
-  cleaned_tibble <- input_tibble %>%
-    filter(!rowSums(is.na(across(everything()))) == ncol(input_tibble))
-    # An alternative using if_all (requires dplyr 1.0.0 or later):
-    # filter(!if_all(everything(), is.na))
-
-
-  return(cleaned_tibble)
-}
-#####################################################
 
 # Read MAX data
 #Current Year
@@ -311,143 +147,7 @@ if (num_active_conditions == 1) { reductions_scen_all <- active_phrases[1]
 
 #####################################################
 
-######################################################
 
-replace_items_conditional <- function(data_tibble,
-                                      lookup_table,
-                                      col_to_replace = 1,
-                                      key_col_in_lookup = 1,
-                                      value_col_in_lookup = 2) {
-  
-  # Validate col_to_replace
-  if (is.character(col_to_replace)) {
-    if (!(col_to_replace %in% names(data_tibble))) {
-      stop(paste("Error: Column '", col_to_replace, "' not found in data_tibble.", sep=""))
-    }
-    # Convert column name to index for internal use
-    col_idx_to_replace <- match(col_to_replace, names(data_tibble))
-  } else if (is.numeric(col_to_replace)) {
-    if (col_to_replace < 1 || col_to_replace > ncol(data_tibble)) {
-      stop("Error: 'col_to_replace' index is out of bounds for data_tibble.")
-    }
-    col_idx_to_replace <- as.integer(col_to_replace)
-  } else {
-    stop("Error: 'col_to_replace' must be a column name (character) or index (numeric).")
-  }
-  
-  # --- Prepare Lookup Table ---
-  # Convert lookup_table to a standardized named vector for efficient lookup
-  if (is.data.frame(lookup_table) || is_tibble(lookup_table)) {
-    if (ncol(lookup_table) < 2 && (is.numeric(key_col_in_lookup) && is.numeric(value_col_in_lookup) && (key_col_in_lookup > ncol(lookup_table) || value_col_in_lookup > ncol(lookup_table)))) {
-      stop("Error: If 'lookup_table' is a data frame/tibble, it must have at least two columns, or valid key/value column specifiers.")
-    }
-    # Handle key_col_in_lookup
-    if (is.character(key_col_in_lookup)) {
-      if (!(key_col_in_lookup %in% names(lookup_table))) stop(paste("Key column '", key_col_in_lookup, "' not found in lookup_table."))
-      keys <- lookup_table[[key_col_in_lookup]]
-    } else if (is.numeric(key_col_in_lookup)) {
-      if (key_col_in_lookup < 1 || key_col_in_lookup > ncol(lookup_table)) stop("Key column index out of bounds for lookup_table.")
-      keys <- lookup_table[[as.integer(key_col_in_lookup)]]
-    } else {
-      stop("Error: 'key_col_in_lookup' must be a column name or index.")
-    }
-    
-    # Handle value_col_in_lookup
-    if (is.character(value_col_in_lookup)) {
-      if (!(value_col_in_lookup %in% names(lookup_table))) stop(paste("Value column '", value_col_in_lookup, "' not found in lookup_table."))
-      values <- lookup_table[[value_col_in_lookup]]
-    } else if (is.numeric(value_col_in_lookup)) {
-      if (value_col_in_lookup < 1 || value_col_in_lookup > ncol(lookup_table)) stop("Value column index out of bounds for lookup_table.")
-      values <- lookup_table[[as.integer(value_col_in_lookup)]]
-    } else {
-      stop("Error: 'value_col_in_lookup' must be a column name or index.")
-    }
-    
-    # Ensure keys and values are of the same length
-    if(length(keys) != length(values)) {
-      stop("Error: Key and value columns in lookup_table must have the same length.")
-    }
-    
-    # Create the named vector, converting keys to character for robust matching
-    internal_lookup_vec <- stats::setNames(as.character(values), as.character(keys))
-    
-  } else if (is.vector(lookup_table) && !is.null(names(lookup_table))) {
-    # It's already a named vector, ensure values and names are character for consistency
-    internal_lookup_vec <- stats::setNames(as.character(lookup_table), as.character(names(lookup_table)))
-  } else {
-    stop("Error: 'lookup_table' must be a named vector, data frame, or tibble.")
-  }
-  
-  # --- Perform Replacement ---
-  # Make a copy to avoid modifying the original tibble by reference (tibbles are copy-on-modify)
-  # but explicit copy is clearer.
-  output_tibble <- data_tibble
-  
-  # Get the actual column data to be modified
-  original_column_data <- output_tibble[[col_idx_to_replace]]
-  
-  # Convert original data to character for matching, if it's not already.
-  # This ensures that numeric keys in lookup_table (if provided as characters)
-  # can match numeric values in the data_tibble column.
-  items_to_check <- as.character(original_column_data)
-  
-  # Get the names (keys) from the lookup vector
-  lookup_keys <- names(internal_lookup_vec)
-  
-  # Perform the replacement
-  # Iterate through each item in the target column
-  new_column_data <- sapply(items_to_check, function(item) {
-    if (item %in% lookup_keys) {
-      # If a match is found, return the replacement value
-      # Use match to get the first corresponding value if there are duplicate keys in lookup_vec
-      # (though setNames typically handles this by taking the last)
-      return(internal_lookup_vec[item])
-    } else {
-      # If no match, return the original item
-      # We need to ensure the type is preserved if no replacement happens.
-      # This is tricky because we converted items_to_check to character.
-      # We'll find the original item's position and return it.
-      # A safer way is to build the new column based on original_column_data's type.
-      return(NA) # Placeholder for items not found
-    }
-  }, USE.NAMES = FALSE)
-  
-  # Coalesce: take new_column_data where it's not NA (i.e., where a replacement occurred),
-  # otherwise take the original data.
-  # This also helps in preserving the original data type if no replacement happened.
-  final_column_values <- ifelse(is.na(new_column_data), original_column_data, new_column_data)
-  
-  # Try to coerce back to original type if possible, or a common compatible type
-  # This part can be complex if types are very different.
-  # For simplicity, if original was factor, try to make new one factor.
-  # If original was numeric and new values are all numeric-coercible, convert.
-  if (is.factor(original_column_data)) {
-    output_tibble[[col_idx_to_replace]] <- factor(final_column_values, levels = unique(c(levels(original_column_data), final_column_values)))
-  } else if (is.numeric(original_column_data) && !is.character(original_column_data) && all(!is.na(suppressWarnings(as.numeric(final_column_values))))) {
-    # Check if all final values can be numbers (even if they came from character lookup values)
-    # And ensure original was not already character (which can look numeric)
-    if (all(final_column_values == suppressWarnings(as.character(as.numeric(final_column_values))))) { # Check if they are "clean" numbers
-      output_tibble[[col_idx_to_replace]] <- as.numeric(final_column_values)
-    } else {
-      output_tibble[[col_idx_to_replace]] <- as.character(final_column_values) # Fallback to character if mixed
-    }
-  } else if (is.integer(original_column_data) && all(!is.na(suppressWarnings(as.integer(final_column_values))))) {
-    if (all(final_column_values == suppressWarnings(as.character(as.integer(final_column_values))))) {
-      output_tibble[[col_idx_to_replace]] <- as.integer(final_column_values)
-    } else {
-      output_tibble[[col_idx_to_replace]] <- as.character(final_column_values) # Fallback to character
-    }
-  }
-  else {
-    # Default to character if types are mixed or complex, or if lookup values introduce non-numeric strings
-    # This is the safest bet if the replacement values are strings.
-    output_tibble[[col_idx_to_replace]] <- as.character(final_column_values)
-  }
-  
-  return(output_tibble)
-}
-
-###########################################################
 
 
 
@@ -516,6 +216,14 @@ cons_CA_CY <- updated_cons_CA_filt %>%
   filter(.[[column_number]] > 0) %>% 
   select(1,all_of(column_number))
 
+cons_CA_CY2 <- updated_cons_CA_filt %>% 
+  filter(.[[column_number+1]] > 0) %>% 
+  select(1,all_of(column_number+1))
+
+cons_CA_CY3 <- updated_cons_CA_filt %>% 
+  filter(.[[column_number+2]] > 0) %>% 
+  select(1,all_of(column_number+2))
+
 cons_CAWCD <- remove_all_na_rows(cons_CAWCD)
 
 cons_CAWCD_CY <- replace_items_conditional(cons_CAWCD, name_lookup) %>% 
@@ -527,6 +235,24 @@ cons_NonCAWCD_CY <- cons_NonCAWCD_filt %>%
   filter(.[[column_number]] > 0) %>% 
   select(1,all_of(column_number))
 
+cons_CAWCD_CY2 <- replace_items_conditional(cons_CAWCD, name_lookup) %>% 
+  filter(.[[column_number+1]] > 0) %>% 
+  select(1,all_of(column_number+1))
+
+cons_NonCAWCD_CY2 <- cons_NonCAWCD_filt %>% 
+  replace_items_conditional(name_lookup) %>% 
+  filter(.[[column_number+1]] > 0) %>% 
+  select(1,all_of(column_number+1))
+
+cons_CAWCD_CY3 <- replace_items_conditional(cons_CAWCD, name_lookup) %>% 
+  filter(.[[column_number+2]] > 0) %>% 
+  select(1,all_of(column_number+2))
+
+cons_NonCAWCD_CY3 <- cons_NonCAWCD_filt %>% 
+  replace_items_conditional(name_lookup) %>% 
+  filter(.[[column_number+2]] > 0) %>% 
+  select(1,all_of(column_number+2))
+
 # Example condition for conditional Markdown
 # Replace this with your actual condition
 show_2025_detailed_note <- FALSE 
@@ -534,7 +260,7 @@ show_2025_detailed_note <- FALSE
 
 ```
 
-### 2025
+### `r current_year`
 
 Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max1,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 1 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323.
 
@@ -557,12 +283,13 @@ if (exists("show_2025_detailed_note") && show_2025_detailed_note) {
 ##### California: `r sprintf("%.3f",round(sum(apportionment[1,2])/1000000,3))` maf
 * MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[2])/1000,0)` kaf
     * Projected diversion includes the `r mwdICSY1` kaf of ICS
-* Total California System Conservation of `r sprintf("%.1f",round(sum(cons_CA[,column_number])/1000,1))` kaf
 
 ```{r generate-bullet-list-apply, results='asis'}
 # Check if cons_CA_CY has rows and at least two columns before proceeding
 if (nrow(cons_CA_CY) > 0 && ncol(cons_CA_CY) >= 2) {
-
+  cat("* Total California System Conservation of ")
+  cat(sprintf("%.1f",round(sum(cons_CA[,column_number])/1000,1)))
+  cat(" kaf\n")
   # Use apply to iterate over rows. For each row:
   # row[1] will be the value from the first column of cons_CA_CY
   # row[2] will be the value from the second column of cons_CA_CY
@@ -573,14 +300,30 @@ if (nrow(cons_CA_CY) > 0 && ncol(cons_CA_CY) >= 2) {
   # Print each bullet point, separated by a newline
   cat(paste0(bullet_points, collapse = ""))
   
-} else if (nrow(cons_CA_CY) == 0) {
-  cat("No data available in `cons_CA_CY` to create a list.")
-} else {
-  cat("`cons_CA_CY` does not have at least two columns as expected.")
 }
+
 ```
 
 * Needles PSCP volume of `r as.numeric(find_rows_containing_string(Max1, "Needles")$value)*-1` af
+```{r conditional-CA-BICS, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationBiNat_MWD")[1,2]>0){
+  addBICS = TRUE
+  bics = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationBiNat_MWD")[1,2]/1000,1)))
+} else{
+  addBICS = FALSE
+  bics=""
+}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by MWD and IID\n")
+}
+
+
+```
 
 ##### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,2])/1000000,3))` maf
 * CAP annual diversion of `r round(find_rows_containing_string(sct_data, "CAPAnnualFC")[1,2]/1000,0)` kaf
@@ -652,7 +395,38 @@ if (nrow(cons_CAWCD_CY) > 0 && ncol(cons_CAWCD_CY) >= 2) {
 ```
 
 * Bullhead City PSCP volume of `r as.numeric(find_rows_containing_string(Max1, "BHC")$value)*-1` af
+
+```{r conditional-AZ-242-y1, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number]>0){
+  add242 = TRUE
+  vol242 = sprintf("%.1f",round(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number]/1000,1))
+} else{
+  add242 = FALSE
+  vol242=""
+}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* System water created by the 242 Well Field Expansion Project of ")
+  cat(vol242)
+  cat(" kaf\n")
+}
+
+```
+
 * System water created by the 242 Well Field Expansion Project of `r sprintf("%.1f",round(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number]/1000,1))` kaf
+
+```{r conditional-AZ-BICS, results='asis', echo=FALSE}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by CAWCD\n")
+}
+
+```
 
 ##### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,2])/1000000,3))` maf
 * SNWA annual use of `r round(find_rows_containing_string(sct_data, "CAPAnnualFC")[1,2]/1000,0)` kaf. Projected diversion includes:
@@ -669,6 +443,14 @@ if(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,2]>0){
   nvshort=""
 }
 
+if(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,2]>0){
+  addECICSdel = TRUE
+  nvECICSdel = unlist(unname(round(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,2]/1000,0)))
+} else{
+  addECICSdel = FALSE
+  nvECICSdel=""
+}
+
 if (exists("addNVShortage") && addNVShortage) {
   #cat("\n") # Ensures a new line before the conditional text
   cat("  * Shortage volume of ")
@@ -676,9 +458,15 @@ if (exists("addNVShortage") && addNVShortage) {
   cat(" kaf\n")
 }
 
+if (exists("addECICSdel") && addECICSdel) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Delivery of ")
+  cat(nvECICSdel)
+  cat(" kaf of EC ICS due to full ICS bank\n")
+}
 
 ```
-    * Shortage volume of `r round(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,2]/1000,0)` kaf
+
 
 ```{r conditional-NV-DCP, results='asis', echo=FALSE}
 # This R code chunk will print Markdown text if the condition is met.
@@ -702,43 +490,149 @@ if (exists("addNVDCP") && addNVDCP) {
 
 ```
 
-* Total System Conservation of 117 kaf
+
 ```{r conditional-NV-SysCons, results='asis', echo=FALSE}
 # This R code chunk will print Markdown text if the condition is met.
 # The 'results="asis"' option is crucial for this to work.
 
 if(find_rows_containing_string(sct_data, "NV_SystemConservation")[1,2]>0){
-  addNVDCP = TRUE
-  nvdcp = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationDCP_NV")[1,2]/1000,0)))
+  addNVTotSyscon = TRUE
+  nvTotSyscon = unlist(unname(round(find_rows_containing_string(sct_data, "NV_SystemConservation")[1,2]/1000,0)))
 } else{
-  addNVDCP = FALSE
-  nvdcp=""
+  addNVTotSyscon = FALSE
+  nvTotSyscon=""
+}
+
+if(find_rows_containing_string(sct_data, "NV_LeftinMead")[1,2]>0){
+  addTribSyscon = TRUE
+  nvTribSyscon = unlist(unname(round(find_rows_containing_string(sct_data, "NV_LeftinMead")[1,2]/1000,0)))
+} else{
+  addTribSyscon = FALSE
+  nvTribSyscon=""
 }
 
 
-
-if (exists("addNVDCP") && addNVDCP) {
+if (exists("addNVTotSyscon") && addNVTotSyscon) {
   #cat("\n") # Ensures a new line before the conditional text
-  cat("* DCP contribution of ")
-  cat(nvdcp)
-  cat(" kaf through EC ICS conversion\n")
-  cat("  *")
+  cat("* Total System Conservation of ")
+  cat(nvTotSyscon)
+  cat(" kaf\n")
+}
+
+if (exists("addTribSyscon") && addTribSyscon) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Tributary conservation of ")
+  cat(nvTribSyscon)
+  cat(" kaf\n")
+}
+
+if(addNVTotSyscon && addTribSyscon) {
+  if((nvTotSyscon - nvTribSyscon)>0){
+    cat("  * Other system conservation of ")
+    cat(nvTotSyscon - nvTribSyscon)
+    cat(" kaf\n")
+  }
 }
 
 
 ```
-    * Tributary conservation of 35 kaf
-    * Other system conservation of 82 kaf
 
 #### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max1, "Mexico Use")$value)/1000000,3))` maf
-* Projected delivery includes:
-    * Shortage volume of 50 kaf
-    * Recoverable Water Savings Contribution of 30 kaf
-    * Minute 330 System Conservation of 120.6 kaf
-* Water Reserve delivery of 21.6 kaf
-* Water Reserve creation of 80.6 kaf
 
-### 2026
+```{r conditional-Mx-short, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if(find_rows_containing_string(sct_data, "Mexico Annual Shortage")[1,2]>0){
+  addMxShort = TRUE
+  mxShort = unlist(unname(round(find_rows_containing_string(sct_data, "Mexico Annual Shortage")[1,2]/1000,0)))
+} else{
+  addMxShort = FALSE
+  mxShort=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationMXRecoverableWaterSavings")[1,2]>0){
+  createWaterSav = TRUE
+  mxCreateWaterSav = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationMXRecoverableWaterSavings")[1,2]/1000,0)))
+} else{
+  createWaterSav = FALSE
+  mxCreateWaterSav=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualDeliveryMXRecoverableWaterSavings")[1,2]>0){
+  delWaterSav = TRUE
+  mxdelWaterSav = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualDeliveryMXRecoverableWaterSavings")[1,2]/1000,0)))
+} else{
+  delWaterSav = FALSE
+  mxdelWaterSav=""
+}
+
+if(find_rows_containing_string(sct_data, "MX_SystemConservation")[1,2]>0){
+  createsysCons = TRUE
+  mxSysCon = unlist(unname(round(find_rows_containing_string(sct_data, "MX_SystemConservation")[1,2]/1000,1)))
+} else{
+  createsysCons = FALSE
+  mxSysCon=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualDeliveryMexicoWaterReserve")[1,2]>0){
+  delMWR = TRUE
+  mxdelMWR = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualDeliveryMexicoWaterReserve")[1,2]/1000,1)))
+} else{
+  delMWR = FALSE
+  mxdelMWR=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationMexicoWaterReserve")[1,2]>0){
+  createMWR = TRUE
+  mxcreateMWR = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationMexicoWaterReserve")[1,2]/1000,1)))
+} else{
+  createMWR = FALSE
+  mxcreateMWR=""
+}
+
+if (exists("createWaterSav") && createWaterSav) {
+  cat("* Projected delivery includes:\n")
+  
+  if (exists("addMxShort") && addMxShort) {
+    cat("  * Shortage volume of")
+    cat(mxShort)
+    cat(" kaf\n")
+  }
+  
+  cat("  * Recoverable Water Savings Contribution of ")
+  cat(mxCreateWaterSav)
+  cat(" kaf\n")
+  
+  if (exists("delWaterSav") && delWaterSav) {
+    cat("  * Recoverable Water Savings Delivery of ")
+    cat(mxdelWaterSav)
+    cat(" kaf\n")
+  }
+  
+  if (exists("createsysCons") && createsysCons) {
+    cat("  * Minute 330 System Conservation of ")
+    cat(mxSysCon)
+    cat(" kaf\n")
+  }
+  
+  if (exists("delMWR") && delMWR) {
+    cat("* Water Reserve delivery of ")
+    cat(mxdelMWR)
+    cat(" kaf\n")
+  }
+  
+  if (exists("createMWR") && createMWR) {
+    cat("* Water Reserve creation of ")
+    cat(mxcreateMWR)
+    cat(" kaf\n")
+  }
+}
+
+```
+
+
+### `r as.numeric(current_year) + 1`
 
 Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max2,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 1 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323.
 
@@ -746,14 +640,31 @@ Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_contai
 
 ##### California: `r sprintf("%.3f",round(sum(apportionment[1,3])/1000000,3))` maf
 * MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[3])/1000,0)` kaf
-    * Projected diversion includes the delivery of 29.2 kaf of ICS
-* Total California System Conservation of 348.5 kaf
-    * CVWD system conservation of 45 kaf
-    * IID system conservation of 205 kaf
-    * Bard system conservation of 5.7 kaf
-    * PVID system conservation of 79.8 kaf
-    * Quechan system conservation of 13.0 kaf
-* Needles PSCP volume of 145 af
+    * Projected diversion includes the `r mwdICSY2` kaf of ICS
+```{r generate-bullet-list-apply-2, results='asis'}
+# Check if cons_CA_CY2 has rows and at least two columns before proceeding
+
+if (nrow(cons_CA_CY2) > 0 && ncol(cons_CA_CY2) >= 2) {
+  
+  cat("* Total California System Conservation of ")
+  cat(sprintf("%.1f",round(sum(cons_CA[,column_number+1])/1000,1)))
+  cat(" kaf\n")
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of cons_CA_CY
+  # row[2] will be the value from the second column of cons_CA_CY
+  bullet_points <- apply(cons_CA_CY2, 1, function(row) {
+    paste0("  * ", row[1], " system conservation of ", round(as.numeric(row[2])/1000,1) , " kaf\n")
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} 
+
+```
+
+* Needles PSCP volume of `r as.numeric(find_rows_containing_string(Max2, "Needles")$value)*-1` af
 * Binational ICS creation of 18.2 kaf to MWD and IID
 
 ##### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,3])/1000000,3))` maf
