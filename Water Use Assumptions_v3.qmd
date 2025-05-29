@@ -116,33 +116,33 @@ mwdICSY3 = ifelse(find_rows_containing_string(sct_data,"MWD_Default")[1,4],
 
 ###### Check for AZ Reductions ######################
 
-x <- find_rows_containing_string(sct_data, "CAP Annual Shortage Volume")[2] 
-y <- find_rows_containing_string(sct_data, "AnnualDCPContribution_AZ")[2]
-z <- find_rows_containing_string(sct_data, "AnnualDeliveryEC_AZ")[2]
-condition1_met <- x > 0; 
-condition2_met <- y > 0; 
-condition3_met <- z > 0
-
-if(x >0 | y>0 | z>0){
-  addreductions = TRUE
-} else {
-  addreductions = FALSE
-}
-
-# --- Define the phrases for each condition ---
-phrase1_text <- paste0("Shortage volume of ", round(x/1000,0), " kaf")
-phrase2_text <- paste0("DCP contribution of ", round(y/1000,0), " kaf")
-phrase3_text <- paste0("ICS delivery of ", round(z/1000,0), " kaf")
-
-active_phrases <- character(0)
-if (condition1_met) { active_phrases <- c(active_phrases, phrase1_text) }
-if (condition2_met) { active_phrases <- c(active_phrases, phrase2_text) }
-if (condition3_met) { active_phrases <- c(active_phrases, phrase3_text) }
-num_active_conditions <- length(active_phrases)
-reductions_scen_all <- ""
-if (num_active_conditions == 1) { reductions_scen_all <- active_phrases[1]
-} else if (num_active_conditions == 2) { reductions_scen_all <- paste0(active_phrases[1], ", and ", active_phrases[2])
-} else if (num_active_conditions == 3) { reductions_scen_all <- paste0(active_phrases[1], ", ", active_phrases[2], ", and ", active_phrases[3])}
+# x <- find_rows_containing_string(sct_data, "CAP Annual Shortage Volume")[2] 
+# y <- find_rows_containing_string(sct_data, "AnnualDCPContribution_AZ")[2]
+# z <- find_rows_containing_string(sct_data, "AnnualDeliveryEC_AZ")[2]
+# condition1_met <- x > 0; 
+# condition2_met <- y > 0; 
+# condition3_met <- z > 0
+# 
+# if(x >0 | y>0 | z>0){
+#   addreductions = TRUE
+# } else {
+#   addreductions = FALSE
+# }
+# 
+# # --- Define the phrases for each condition ---
+# phrase1_text <- paste0("Shortage volume of ", round(x/1000,0), " kaf")
+# phrase2_text <- paste0("DCP contribution of ", round(y/1000,0), " kaf")
+# phrase3_text <- paste0("ICS delivery of ", round(z/1000,0), " kaf")
+# 
+# active_phrases <- character(0)
+# if (condition1_met) { active_phrases <- c(active_phrases, phrase1_text) }
+# if (condition2_met) { active_phrases <- c(active_phrases, phrase2_text) }
+# if (condition3_met) { active_phrases <- c(active_phrases, phrase3_text) }
+# num_active_conditions <- length(active_phrases)
+# reductions_scen_all <- ""
+# if (num_active_conditions == 1) { reductions_scen_all <- active_phrases[1]
+# } else if (num_active_conditions == 2) { reductions_scen_all <- paste0(active_phrases[1], ", and ", active_phrases[2])
+# } else if (num_active_conditions == 3) { reductions_scen_all <- paste0(active_phrases[1], ", ", active_phrases[2], ", and ", active_phrases[3])}
 
 
 #####################################################
@@ -305,7 +305,7 @@ if (nrow(cons_CA_CY) > 0 && ncol(cons_CA_CY) >= 2) {
 ```
 
 * Needles PSCP volume of `r as.numeric(find_rows_containing_string(Max1, "Needles")$value)*-1` af
-```{r conditional-CA-BICS, results='asis', echo=FALSE}
+```{r conditional-CA-BICS-Y1, results='asis', echo=FALSE}
 
 if(find_rows_containing_string(sct_data, "AnnualCreationBiNat_MWD")[1,2]>0){
   addBICS = TRUE
@@ -328,9 +328,10 @@ if (exists("addBICS") && addBICS) {
 ##### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,2])/1000000,3))` maf
 * CAP annual diversion of `r round(find_rows_containing_string(sct_data, "CAPAnnualFC")[1,2]/1000,0)` kaf
 
-```{r conditional-AZ-reductions, results='asis', echo=FALSE}
-# This R code chunk will print Markdown text if the condition is met.
-# The 'results="asis"' option is crucial for this to work.
+```{r conditional-AZ-reductions-Y1, results='asis', echo=FALSE}
+
+addreductions = calculate_AZ_reductions(year=1, sct_data = sct_data)$addreductions
+reductions_scen_all = calculate_AZ_reductions(year=1, sct_data = sct_data)$reductions_scen_all
 
 if (exists("addreductions") && addreductions) {
   #cat("\n") # Ensures a new line before the conditional text
@@ -348,7 +349,7 @@ az_dcpSys <- ifelse((az_dcpSys/1000) %% 1 != 0, round(az_dcpSys/1000, 1), round(
 
 * DCP contribution will be made by creating `r ifelse(az_dcpICS > 0, paste0(az_dcpICS, " kaf of ICS and ", az_dcpSys, " kaf of non-ICS water"), paste0(az_dcpSys, " kaf of non-ICS water"))` 
 * Total non-CAWCD System Conservation of `r sprintf("%.1f",round(sum(cons_NonCAWCD_filt[,column_number])/1000,1))` kaf
-```{r generate-bullet-list-nonCAWCD, results='asis'}
+```{r generate-bullet-list-nonCAWCD-y1, results='asis'}
 # Check if cons_CA_CY has rows and at least two columns before proceeding
 if (nrow(cons_NonCAWCD_CY) > 0 && ncol(cons_NonCAWCD_CY) >= 2) {
 
@@ -371,7 +372,7 @@ if (nrow(cons_NonCAWCD_CY) > 0 && ncol(cons_NonCAWCD_CY) >= 2) {
 
 * Total CAWCD System Conservation of `r sprintf("%.1f",round(sum(cons_CAWCD[,column_number])/1000,1))` kaf
 
-```{r generate-bullet-list-CAWCD, results='asis'}
+```{r generate-bullet-list-CAWCD-Y1, results='asis'}
 # Check if cons_CA_CY has rows and at least two columns before proceeding
 if (nrow(cons_CAWCD_CY) > 0 && ncol(cons_CAWCD_CY) >= 2) {
 
@@ -396,7 +397,7 @@ if (nrow(cons_CAWCD_CY) > 0 && ncol(cons_CAWCD_CY) >= 2) {
 
 * Bullhead City PSCP volume of `r as.numeric(find_rows_containing_string(Max1, "BHC")$value)*-1` af
 
-```{r conditional-AZ-242-y1, results='asis', echo=FALSE}
+```{r conditional-AZ-242-Y1, results='asis', echo=FALSE}
 
 if(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number]>0){
   add242 = TRUE
@@ -406,7 +407,7 @@ if(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number]>0)
   vol242=""
 }
 
-if (exists("addBICS") && addBICS) {
+if (exists("add242") && add242) {
   
   cat("* System water created by the 242 Well Field Expansion Project of ")
   cat(vol242)
@@ -415,9 +416,8 @@ if (exists("addBICS") && addBICS) {
 
 ```
 
-* System water created by the 242 Well Field Expansion Project of `r sprintf("%.1f",round(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number]/1000,1))` kaf
 
-```{r conditional-AZ-BICS, results='asis', echo=FALSE}
+```{r conditional-AZ-BICS-Y1, results='asis', echo=FALSE}
 
 if (exists("addBICS") && addBICS) {
   
@@ -429,7 +429,7 @@ if (exists("addBICS") && addBICS) {
 ```
 
 ##### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,2])/1000000,3))` maf
-* SNWA annual use of `r round(find_rows_containing_string(sct_data, "CAPAnnualFC")[1,2]/1000,0)` kaf. Projected diversion includes:
+* SNWA annual use of `r round(find_rows_containing_string(sct_data, "NvTotalAnnual")[1,2]/1000,0)` kaf. Projected diversion includes:
 
 ```{r conditional-NV-Shortage, results='asis', echo=FALSE}
 # This R code chunk will print Markdown text if the condition is met.
@@ -445,7 +445,7 @@ if(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,2]>0){
 
 if(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,2]>0){
   addECICSdel = TRUE
-  nvECICSdel = unlist(unname(round(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,2]/1000,0)))
+  nvECICSdel = unlist(unname(round(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,2]/1000,1)))
 } else{
   addECICSdel = FALSE
   nvECICSdel=""
@@ -537,9 +537,20 @@ if(addNVTotSyscon && addTribSyscon) {
 
 ```
 
+```{r conditional-NV-BICS-Y1, results='asis', echo=FALSE}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by SNWA\n")
+}
+
+```
+
 #### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max1, "Mexico Use")$value)/1000000,3))` maf
 
-```{r conditional-Mx-short, results='asis', echo=FALSE}
+```{r conditional-Mx-short-Y1, results='asis', echo=FALSE}
 # This R code chunk will print Markdown text if the condition is met.
 # The 'results="asis"' option is crucial for this to work.
 
@@ -595,7 +606,7 @@ if (exists("createWaterSav") && createWaterSav) {
   cat("* Projected delivery includes:\n")
   
   if (exists("addMxShort") && addMxShort) {
-    cat("  * Shortage volume of")
+    cat("  * Shortage volume of ")
     cat(mxShort)
     cat(" kaf\n")
   }
@@ -665,51 +676,339 @@ if (nrow(cons_CA_CY2) > 0 && ncol(cons_CA_CY2) >= 2) {
 ```
 
 * Needles PSCP volume of `r as.numeric(find_rows_containing_string(Max2, "Needles")$value)*-1` af
-* Binational ICS creation of 18.2 kaf to MWD and IID
+```{r conditional-CA-BICS-Y2, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationBiNat_MWD")[1,3]>0){
+  addBICS = TRUE
+  bics = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationBiNat_MWD")[1,3]/1000,1)))
+} else{
+  addBICS = FALSE
+  bics=""
+}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by MWD and IID\n")
+}
+
+
+```
 
 ##### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,3])/1000000,3))` maf
-* CAP annual diversion of 838 kaf
-    * Projected diversion includes a Shortage volume of 320 kaf and a DCP contribution of 192 kaf by CAWCD
-* DCP contribution will be made by creating 50 kaf of ICS and 142 kaf of non-ICS water
-* Total non-CAWCD System Conservation of 134.2 kaf
-    * FMYN: 13.9 kaf
-    * GRIC: 51.7 kaf
-    * SCAT: 23.5 kaf
-    * Gabrych: 3.2 kaf
-    * MVIDD: 14.5 kaf
-    * Cathcart: 61 af
-    * YMIDD: 22.0 kaf
-    * CVIDD: 2.3 kaf
-    * Hopi: 3.1 kaf
-* Total CAWCD System Conservation of 101.0 kaf
-    * ASARCO: 21 kaf
-    * Gilbert: 1.6 kaf
-    * Glendale: 7 kaf
-    * Metro Water District: 5.0 kaf
-    * Peoria: 7.2 kaf
-    * Scottsdale: 4.0 kaf
-    * Tucson: 52.8 kaf
-    * Spanish Trail Water Co.: 2.4 kaf
-* Bullhead City PSCP volume of 400 af
-* System water created by the 242 Well Field Expansion Project of 25 kaf
-* Binational ICS creation of 18.2 kaf to CAWCD
+* CAP annual diversion of `r round(find_rows_containing_string(sct_data, "CAPAnnualFC")[1,3]/1000,0)` kaf
+
+```{r conditional-AZ-reductions-Y2, results='asis', echo=FALSE}
+
+addreductions = calculate_AZ_reductions(year=2, sct_data = sct_data)$addreductions
+reductions_scen_all = calculate_AZ_reductions(year=2, sct_data = sct_data)$reductions_scen_all
+
+if (exists("addreductions") && addreductions) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("    * Projected diversion includes a ")
+  cat(reductions_scen_all)
+  cat("\n")
+}
+
+az_dcpICS <- find_rows_containing_string(sct_data, "AnnualCreationDCP_CAWCD")[3]
+az_dcpICS <- ifelse((az_dcpICS/1000) %% 1 != 0, round(az_dcpICS/1000, 1), round(az_dcpICS/1000, 0))
+az_dcpSys <- find_rows_containing_string(sct_data, "AnnualSysWaterforDCP_CAWCD")[3]
+az_dcpSys <- ifelse((az_dcpSys/1000) %% 1 != 0, round(az_dcpSys/1000, 1), round(az_dcpSys/1000, 0))
+
+```
+
+* DCP contribution will be made by creating `r ifelse(az_dcpICS > 0, paste0(az_dcpICS, " kaf of ICS and ", az_dcpSys, " kaf of non-ICS water"), paste0(az_dcpSys, " kaf of non-ICS water"))` 
+* Total non-CAWCD System Conservation of `r sprintf("%.1f",round(sum(cons_NonCAWCD_filt[,column_number +1])/1000,1))` kaf
+```{r generate-bullet-list-nonCAWCD-Y2, results='asis'}
+# Check if cons_CA_CY has rows and at least two columns before proceeding
+if (nrow(cons_NonCAWCD_CY2) > 0 && ncol(cons_NonCAWCD_CY2) >= 2) {
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of cons_CA_CY
+  # row[2] will be the value from the second column of cons_CA_CY
+  bullet_points <- apply(cons_NonCAWCD_CY2, 1, function(row) {
+    paste0("  * ", row[1], " : ", ifelse(as.numeric(row[2])>100, paste0(round(as.numeric(row[2])/1000,1) , " kaf\n"), paste0(round(as.numeric(row[2]),0), " af\n") ))
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} 
+
+```
+
+* Total CAWCD System Conservation of `r sprintf("%.1f",round(sum(cons_CAWCD[,column_number +1])/1000,1))` kaf
+
+```{r generate-bullet-list-CAWCD-Y2, results='asis'}
+# Check if cons_CA_CY has rows and at least two columns before proceeding
+if (nrow(cons_CAWCD_CY2) > 0 && ncol(cons_CAWCD_CY2) >= 2) {
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of cons_CA_CY
+  # row[2] will be the value from the second column of cons_CA_CY
+  bullet_points <- apply(cons_CAWCD_CY2, 1, function(row) {
+    paste0("  * ", row[1], " : ", ifelse(as.numeric(row[2])>100, paste0(round(as.numeric(row[2])/1000,1) , " kaf\n"), paste0(round(as.numeric(row[2]),0), " af\n") ))
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} 
+
+```
+
+* Bullhead City PSCP volume of `r as.numeric(find_rows_containing_string(Max2, "BHC")$value)*-1` af
+
+```{r conditional-AZ-242-Y2, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number+1]>0){
+  add242 = TRUE
+  vol242 = sprintf("%.1f",round(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number+1]/1000,1))
+} else{
+  add242 = FALSE
+  vol242=""
+}
+
+if (exists("add242") && add242) {
+  
+  cat("* System water created by the 242 Well Field Expansion Project of ")
+  cat(vol242)
+  cat(" kaf\n")
+}
+
+```
+
+
+```{r conditional-AZ-BICS-Y2, results='asis', echo=FALSE}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by CAWCD\n")
+}
+
+```
 
 ##### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,3])/1000000,3))` maf
-* SNWA annual use of 192 kaf. Projected diversion includes:
-    * Shortage volume of 13 kaf
-* DCP contribution of 8 kaf through EC ICS conversion
-* Total System Conservation of 121 kaf
-    * Tributary conservation: 35 kaf
-    * Other System Conservation: 86 kaf
-* Binational ICS creation of 18.2 kaf to SNWA
+
+* SNWA annual use of `r round(find_rows_containing_string(sct_data, "NvTotalAnnual")[1,3]/1000,0)` kaf. Projected diversion includes:
+
+```{r conditional-NV-Shortage-Y2, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,3]>0){
+  addNVShortage = TRUE
+  nvshort = unlist(unname(round(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,3]/1000,0)))
+} else{
+  addNVShortage = FALSE
+  nvshort=""
+}
+
+if(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,3]>0){
+  addECICSdel = TRUE
+  nvECICSdel = unlist(unname(round(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,3]/1000,1)))
+} else{
+  addECICSdel = FALSE
+  nvECICSdel=""
+}
+
+if (exists("addNVShortage") && addNVShortage) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Shortage volume of ")
+  cat(nvshort)
+  cat(" kaf\n")
+}
+
+if (exists("addECICSdel") && addECICSdel) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Delivery of ")
+  cat(nvECICSdel)
+  cat(" kaf of EC ICS due to full ICS bank\n")
+}
+
+```
+
+
+```{r conditional-NV-DCP-Y2, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if(find_rows_containing_string(sct_data, "AnnualCreationDCP_NV")[1,3]>0){
+  addNVDCP = TRUE
+  nvdcp = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationDCP_NV")[1,3]/1000,0)))
+} else{
+  addNVDCP = FALSE
+  nvdcp=""
+}
+
+if (exists("addNVDCP") && addNVDCP) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("* DCP contribution of ")
+  cat(nvdcp)
+  cat(" kaf through EC ICS conversion\n")
+}
+
+
+```
+
+
+```{r conditional-NV-SysCons-Y2, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if(find_rows_containing_string(sct_data, "NV_SystemConservation")[1,3]>0){
+  addNVTotSyscon = TRUE
+  nvTotSyscon = unlist(unname(round(find_rows_containing_string(sct_data, "NV_SystemConservation")[1,3]/1000,0)))
+} else{
+  addNVTotSyscon = FALSE
+  nvTotSyscon=""
+}
+
+if(find_rows_containing_string(sct_data, "NV_LeftinMead")[1,3]>0){
+  addTribSyscon = TRUE
+  nvTribSyscon = unlist(unname(round(find_rows_containing_string(sct_data, "NV_LeftinMead")[1,3]/1000,0)))
+} else{
+  addTribSyscon = FALSE
+  nvTribSyscon=""
+}
+
+
+if (exists("addNVTotSyscon") && addNVTotSyscon) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("* Total System Conservation of ")
+  cat(nvTotSyscon)
+  cat(" kaf\n")
+}
+
+if (exists("addTribSyscon") && addTribSyscon) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Tributary conservation of ")
+  cat(nvTribSyscon)
+  cat(" kaf\n")
+}
+
+if(addNVTotSyscon && addTribSyscon) {
+  if((nvTotSyscon - nvTribSyscon)>0){
+    cat("  * Other system conservation of ")
+    cat(nvTotSyscon - nvTribSyscon)
+    cat(" kaf\n")
+  }
+}
+
+
+```
+
+```{r conditional-NV-BICS-Y2, results='asis', echo=FALSE}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by SNWA\n")
+}
+
+```
+
 
 #### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max2, "Mexico Use")$value)/1000000,3))` maf
-* Projected delivery includes:
-    * Shortage volume of 50 kaf
-    * Recoverable Water Savings Contribution of 30 kaf
-    * Minute 330 System Conservation of 67 kaf
 
-### 2027
+```{r conditional-Mx-short-Y2, results='asis', echo=FALSE}
+# This R code chunk will print Markdown text if the condition is met.
+# The 'results="asis"' option is crucial for this to work.
+
+if(find_rows_containing_string(sct_data, "Mexico Annual Shortage")[1,3]>0){
+  addMxShort = TRUE
+  mxShort = unlist(unname(round(find_rows_containing_string(sct_data, "Mexico Annual Shortage")[1,3]/1000,0)))
+} else{
+  addMxShort = FALSE
+  mxShort=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationMXRecoverableWaterSavings")[1,3]>0){
+  createWaterSav = TRUE
+  mxCreateWaterSav = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationMXRecoverableWaterSavings")[1,3]/1000,0)))
+} else{
+  createWaterSav = FALSE
+  mxCreateWaterSav=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualDeliveryMXRecoverableWaterSavings")[1,3]>0){
+  delWaterSav = TRUE
+  mxdelWaterSav = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualDeliveryMXRecoverableWaterSavings")[1,3]/1000,0)))
+} else{
+  delWaterSav = FALSE
+  mxdelWaterSav=""
+}
+
+if(find_rows_containing_string(sct_data, "MX_SystemConservation")[1,3]>0){
+  createsysCons = TRUE
+  mxSysCon = unlist(unname(round(find_rows_containing_string(sct_data, "MX_SystemConservation")[1,3]/1000,1)))
+} else{
+  createsysCons = FALSE
+  mxSysCon=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualDeliveryMexicoWaterReserve")[1,3]>0){
+  delMWR = TRUE
+  mxdelMWR = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualDeliveryMexicoWaterReserve")[1,3]/1000,1)))
+} else{
+  delMWR = FALSE
+  mxdelMWR=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationMexicoWaterReserve")[1,3]>0){
+  createMWR = TRUE
+  mxcreateMWR = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationMexicoWaterReserve")[1,3]/1000,1)))
+} else{
+  createMWR = FALSE
+  mxcreateMWR=""
+}
+
+if (exists("createWaterSav") && createWaterSav) {
+  cat("* Projected delivery includes:\n")
+  
+  if (exists("addMxShort") && addMxShort) {
+    cat("  * Shortage volume of ")
+    cat(mxShort)
+    cat(" kaf\n")
+  }
+  
+  cat("  * Recoverable Water Savings Contribution of ")
+  cat(mxCreateWaterSav)
+  cat(" kaf\n")
+  
+  if (exists("delWaterSav") && delWaterSav) {
+    cat("  * Recoverable Water Savings Delivery of ")
+    cat(mxdelWaterSav)
+    cat(" kaf\n")
+  }
+  
+  if (exists("createsysCons") && createsysCons) {
+    cat("  * Minute 330 System Conservation of ")
+    cat(mxSysCon)
+    cat(" kaf\n")
+  }
+  
+  if (exists("delMWR") && delMWR) {
+    cat("* Water Reserve delivery of ")
+    cat(mxdelMWR)
+    cat(" kaf\n")
+  }
+  
+  if (exists("createMWR") && createMWR) {
+    cat("* Water Reserve creation of ")
+    cat(mxcreateMWR)
+    cat(" kaf\n")
+  }
+}
+
+```
+
+
+### `r as.numeric(current_year) + 2`
 
 Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_containing_string(Max3,"Total Basin Use")$value)/1000000,3))` maf)** – Based on Lake Mead Operating Condition of Level 2 Shortage and water savings contributions under the LB DCP Agreement and IBWC Minute 323. For modeling purposes, simulated years beyond 2026 assume a continuation of the 2007 Interim Guidelines, the 2019 Colorado River Basin Drought Contingency Plans, and Minute 323, including the Binational Water Scarcity Contingency Plan. Except for certain provisions related to ICS recovery and Upper Basin demand management, operations under these agreements are in effect through 2026. Reclamation initiated the process to develop operations for post-2026 in June 2023, and the modeling assumptions described here are subject to change.
 
@@ -717,33 +1016,357 @@ Total projected water use **(`r sprintf("%.3f",round(as.numeric(find_rows_contai
 
 ##### California: `r sprintf("%.3f",round(sum(apportionment[1,4])/1000000,3))` maf
 * MWD annual diversion of `r round(as.numeric(find_rows_containing_string(sct_data,"MWDDiversionAnnualFC")[4])/1000,0)` kaf
-    * Projected diversion includes the delivery of 4.9 kaf of ICS
-* Needles PSCP volume of 145 af
+    * Projected diversion includes the `r mwdICSY3` kaf of ICS
+    
+```{r generate-bullet-list-apply-3, results='asis'}
+# Check if cons_CA_CY3 has rows and at least two columns before proceeding
+
+if (nrow(cons_CA_CY3) > 0 && ncol(cons_CA_CY3) >= 2) {
+  
+  cat("* Total California System Conservation of ")
+  cat(sprintf("%.1f",round(sum(cons_CA[,column_number+2])/1000,1)))
+  cat(" kaf\n")
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of cons_CA_CY
+  # row[2] will be the value from the second column of cons_CA_CY
+  bullet_points <- apply(cons_CA_CY3, 1, function(row) {
+    paste0("  * ", row[1], " system conservation of ", round(as.numeric(row[2])/1000,1) , " kaf\n")
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} 
+
+```
+
+* Needles PSCP volume of `r as.numeric(find_rows_containing_string(Max3, "Needles")$value)*-1` af
+
+```{r conditional-CA-BICS-Y3, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationBiNat_MWD")[1,4]>0){
+  addBICS = TRUE
+  bics = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationBiNat_MWD")[1,4]/1000,1)))
+} else{
+  addBICS = FALSE
+  bics=""
+}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by MWD and IID\n")
+}
+
+
+```
 
 ##### Arizona: `r sprintf("%.3f",round(sum(apportionment[2,4])/1000000,3))` maf
-* CAP annual diversion of 980 kaf
-    * Projected diversion includes a Shortage volume of 400 kaf, a DCP contribution of 192 kaf by CAWCD, and ICS delivery of 79.5 kaf (54.5 kaf post-2026 delivery plus 25.0 kaf GRIC firming)
-* DCP contribution will be made by creating 50 kaf of ICS and 142 kaf of non-ICS water
-* Total non-CAWCD System Conservation of 20.6 kaf
-    * GRIC: 20.6 kaf
-* Total CAWCD System Conservation of 7.2 kaf
-    * Gilbert: 767 af
-    * Scottsdale: 2.8 kaf
-    * Tucson: 3.7 kaf
-* Bullhead City PSCP volume of 400 af
+* CAP annual diversion of `r prettyNum(round(find_rows_containing_string(sct_data, "CAPAnnualFC")[1,4]/1000,0),  big.mark = ",", scientific = FALSE)` kaf
+```{r conditional-AZ-reductions-Y3, results='asis', echo=FALSE}
+
+addreductions = calculate_AZ_reductions(year=3, sct_data = sct_data)$addreductions
+reductions_scen_all = calculate_AZ_reductions(year=3, sct_data = sct_data)$reductions_scen_all
+
+if (exists("addreductions") && addreductions) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("    * Projected diversion includes a ")
+  cat(reductions_scen_all)
+  cat("\n")
+}
+
+az_dcpICS <- find_rows_containing_string(sct_data, "AnnualCreationDCP_CAWCD")[4]
+az_dcpICS <- ifelse((az_dcpICS/1000) %% 1 != 0, round(az_dcpICS/1000, 1), round(az_dcpICS/1000, 0))
+az_dcpSys <- find_rows_containing_string(sct_data, "AnnualSysWaterforDCP_CAWCD")[4]
+az_dcpSys <- ifelse((az_dcpSys/1000) %% 1 != 0, round(az_dcpSys/1000, 1), round(az_dcpSys/1000, 0))
+
+```
+
+* DCP contribution will be made by creating `r ifelse(az_dcpICS > 0, paste0(az_dcpICS, " kaf of ICS and ", az_dcpSys, " kaf of non-ICS water"), paste0(az_dcpSys, " kaf of non-ICS water"))` 
+* Total non-CAWCD System Conservation of `r sprintf("%.1f",round(sum(cons_NonCAWCD_filt[,column_number +2])/1000,1))` kaf
+```{r generate-bullet-list-nonCAWCD-Y3, results='asis'}
+# Check if cons_CA_CY3 has rows and at least two columns before proceeding
+if (nrow(cons_NonCAWCD_CY3) > 0 && ncol(cons_NonCAWCD_CY3) >= 2) {
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of cons_CA_CY
+  # row[2] will be the value from the second column of cons_CA_CY
+  bullet_points <- apply(cons_NonCAWCD_CY3, 1, function(row) {
+    paste0("  * ", row[1], " : ", ifelse(as.numeric(row[2])>100, paste0(round(as.numeric(row[2])/1000,1) , " kaf\n"), paste0(round(as.numeric(row[2]),0), " af\n") ))
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} 
+
+```
+
+* Total CAWCD System Conservation of `r sprintf("%.1f",round(sum(cons_CAWCD[,column_number +2])/1000,1))` kaf
+
+```{r generate-bullet-list-CAWCD-Y3, results='asis'}
+# Check if cons_CA_CY3 has rows and at least two columns before proceeding
+if (nrow(cons_CAWCD_CY3) > 0 && ncol(cons_CAWCD_CY3) >= 2) {
+
+  # Use apply to iterate over rows. For each row:
+  # row[1] will be the value from the first column of cons_CA_CY
+  # row[2] will be the value from the second column of cons_CA_CY
+  bullet_points <- apply(cons_CAWCD_CY3, 1, function(row) {
+    paste0("  * ", row[1], " : ", ifelse(as.numeric(row[2])>100, paste0(round(as.numeric(row[2])/1000,1) , " kaf\n"), paste0(round(as.numeric(row[2]),0), " af\n") ))
+  })
+  
+  # Print each bullet point, separated by a newline
+  cat(paste0(bullet_points, collapse = ""))
+  
+} 
+
+```
+
+* Bullhead City PSCP volume of `r as.numeric(find_rows_containing_string(Max3, "BHC")$value)*-1` af
+
+```{r conditional-AZ-242-Y3, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number+2]>0){
+  add242 = TRUE
+  vol242 = sprintf("%.1f",round(find_rows_containing_string(cons_NonCAWCD,"242 Wellfield")[,column_number+2]/1000,1))
+} else{
+  add242 = FALSE
+  vol242=""
+}
+
+if (exists("add242") && add242) {
+  
+  cat("* System water created by the 242 Well Field Expansion Project of ")
+  cat(vol242)
+  cat(" kaf\n")
+}
+
+```
+
+
+```{r conditional-AZ-BICS-Y3, results='asis', echo=FALSE}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by CAWCD\n")
+}
+
+```
+
 
 ##### Nevada: `r sprintf("%.3f",round(sum(apportionment[3,4])/1000000,3))` maf
-* SNWA annual use of 186 kaf. Projected diversion includes:
-    * Shortage volume of 17 kaf
-    * EC ICS creation of 88 kaf
-* DCP contribution of 8 kaf through EC ICS conversion
-* Total System Conservation of 35 kaf
-    * Tributary conservation: 35 kaf
+
+* SNWA annual use of `r round(find_rows_containing_string(sct_data, "NvTotalAnnual")[1,4]/1000,0)` kaf. Projected diversion includes:
+
+```{r conditional-NV-Shortage-Y3, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,4]>0){
+  addNVShortage = TRUE
+  nvshort = unlist(unname(round(find_rows_containing_string(sct_data, "SNWP Annual Shortage Volume")[1,4]/1000,0)))
+} else{
+  addNVShortage = FALSE
+  nvshort=""
+}
+
+if(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,4]>0){
+  addECICSdel = TRUE
+  nvECICSdel = unlist(unname(round(find_rows_containing_string(sct_data, "VacatedECICSToBeDelivered_SNWA")[1,4]/1000,1)))
+} else{
+  addECICSdel = FALSE
+  nvECICSdel=""
+}
+
+if (exists("addNVShortage") && addNVShortage) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Shortage volume of ")
+  cat(nvshort)
+  cat(" kaf\n")
+}
+
+if (exists("addECICSdel") && addECICSdel) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Delivery of ")
+  cat(nvECICSdel)
+  cat(" kaf of EC ICS due to full ICS bank\n")
+}
+
+```
+
+
+```{r conditional-NV-DCP-Y3, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationDCP_NV")[1,4]>0){
+  addNVDCP = TRUE
+  nvdcp = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationDCP_NV")[1,4]/1000,0)))
+} else{
+  addNVDCP = FALSE
+  nvdcp=""
+}
+
+if (exists("addNVDCP") && addNVDCP) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("* DCP contribution of ")
+  cat(nvdcp)
+  cat(" kaf through EC ICS conversion\n")
+}
+
+
+```
+
+
+```{r conditional-NV-SysCons-Y3, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(sct_data, "NV_SystemConservation")[1,4]>0){
+  addNVTotSyscon = TRUE
+  nvTotSyscon = unlist(unname(round(find_rows_containing_string(sct_data, "NV_SystemConservation")[1,4]/1000,0)))
+} else{
+  addNVTotSyscon = FALSE
+  nvTotSyscon=""
+}
+
+if(find_rows_containing_string(sct_data, "NV_LeftinMead")[1,4]>0){
+  addTribSyscon = TRUE
+  nvTribSyscon = unlist(unname(round(find_rows_containing_string(sct_data, "NV_LeftinMead")[1,4]/1000,0)))
+} else{
+  addTribSyscon = FALSE
+  nvTribSyscon=""
+}
+
+
+if (exists("addNVTotSyscon") && addNVTotSyscon) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("* Total System Conservation of ")
+  cat(nvTotSyscon)
+  cat(" kaf\n")
+}
+
+if (exists("addTribSyscon") && addTribSyscon) {
+  #cat("\n") # Ensures a new line before the conditional text
+  cat("  * Tributary conservation of ")
+  cat(nvTribSyscon)
+  cat(" kaf\n")
+}
+
+if(addNVTotSyscon && addTribSyscon) {
+  if((nvTotSyscon - nvTribSyscon)>0){
+    cat("  * Other system conservation of ")
+    cat(nvTotSyscon - nvTribSyscon)
+    cat(" kaf\n")
+  }
+}
+
+
+```
+
+```{r conditional-NV-BICS-Y3, results='asis', echo=FALSE}
+
+if (exists("addBICS") && addBICS) {
+  
+  cat("* Binational ICS creation of ")
+  cat(bics)
+  cat(" kaf by SNWA\n")
+}
+
+```
+
+
 
 #### Mexico’s Scheduled Water Delivery: `r sprintf("%.3f", round(as.numeric(find_rows_containing_string(Max3, "Mexico Use")$value)/1000000,3))` maf
-* Projected delivery includes:
-    * Shortage volume of 70 kaf
-    * Recoverable Water Savings Contribution of 34 kaf
+
+```{r conditional-Mx-short-Y3, results='asis', echo=FALSE}
+
+if(find_rows_containing_string(sct_data, "Mexico Annual Shortage")[1,4]>0){
+  addMxShort = TRUE
+  mxShort = unlist(unname(round(find_rows_containing_string(sct_data, "Mexico Annual Shortage")[1,4]/1000,0)))
+} else{
+  addMxShort = FALSE
+  mxShort=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationMXRecoverableWaterSavings")[1,4]>0){
+  createWaterSav = TRUE
+  mxCreateWaterSav = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationMXRecoverableWaterSavings")[1,4]/1000,0)))
+} else{
+  createWaterSav = FALSE
+  mxCreateWaterSav=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualDeliveryMXRecoverableWaterSavings")[1,4]>0){
+  delWaterSav = TRUE
+  mxdelWaterSav = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualDeliveryMXRecoverableWaterSavings")[1,4]/1000,0)))
+} else{
+  delWaterSav = FALSE
+  mxdelWaterSav=""
+}
+
+if(find_rows_containing_string(sct_data, "MX_SystemConservation")[1,4]>0){
+  createsysCons = TRUE
+  mxSysCon = unlist(unname(round(find_rows_containing_string(sct_data, "MX_SystemConservation")[1,4]/1000,1)))
+} else{
+  createsysCons = FALSE
+  mxSysCon=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualDeliveryMexicoWaterReserve")[1,4]>0){
+  delMWR = TRUE
+  mxdelMWR = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualDeliveryMexicoWaterReserve")[1,4]/1000,1)))
+} else{
+  delMWR = FALSE
+  mxdelMWR=""
+}
+
+if(find_rows_containing_string(sct_data, "AnnualCreationMexicoWaterReserve")[1,4]>0){
+  createMWR = TRUE
+  mxcreateMWR = unlist(unname(round(find_rows_containing_string(sct_data, "AnnualCreationMexicoWaterReserve")[1,4]/1000,1)))
+} else{
+  createMWR = FALSE
+  mxcreateMWR=""
+}
+
+if (exists("createWaterSav") && createWaterSav) {
+  cat("* Projected delivery includes:\n")
+  
+  if (exists("addMxShort") && addMxShort) {
+    cat("  * Shortage volume of ")
+    cat(mxShort)
+    cat(" kaf\n")
+  }
+  
+  cat("  * Recoverable Water Savings Contribution of ")
+  cat(mxCreateWaterSav)
+  cat(" kaf\n")
+  
+  if (exists("delWaterSav") && delWaterSav) {
+    cat("  * Recoverable Water Savings Delivery of ")
+    cat(mxdelWaterSav)
+    cat(" kaf\n")
+  }
+  
+  if (exists("createsysCons") && createsysCons) {
+    cat("  * Minute 330 System Conservation of ")
+    cat(mxSysCon)
+    cat(" kaf\n")
+  }
+  
+  if (exists("delMWR") && delMWR) {
+    cat("* Water Reserve delivery of ")
+    cat(mxdelMWR)
+    cat(" kaf\n")
+  }
+  
+  if (exists("createMWR") && createMWR) {
+    cat("* Water Reserve creation of ")
+    cat(mxcreateMWR)
+    cat(" kaf\n")
+  }
+}
+
+```
+
 
 ### ICS Totals
 

@@ -303,3 +303,63 @@ replace_items_conditional <- function(data_tibble,
 }
 
 ###########################################################
+
+####### Function to compute AZ reduction scenarios #########
+
+calculate_AZ_reductions <- function(year, sct_data) {
+  # Assuming 'find_rows_containing_string' is a pre-defined function
+  # and 'sct_data' is available in the environment or passed as an argument.
+  
+  year = year +1 
+  
+  x <- find_rows_containing_string(sct_data, "CAP Annual Shortage Volume")[year]
+  y <- find_rows_containing_string(sct_data, "AnnualDCPContribution_AZ")[year]
+  z <- find_rows_containing_string(sct_data, "AnnualDeliveryEC_AZ")[year]
+  
+  # Ensure x, y, z are numeric and handle potential NA values by coercing to 0
+  x <- ifelse(is.na(x), 0, as.numeric(x))
+  y <- ifelse(is.na(y), 0, as.numeric(y))
+  z <- ifelse(is.na(z), 0, as.numeric(z))
+  
+  condition1_met <- x > 0
+  condition2_met <- y > 0
+  condition3_met <- z > 0
+  
+  if (x > 0 | y > 0 | z > 0) {
+    addreductions <- TRUE
+  } else {
+    addreductions <- FALSE
+  }
+  
+  # --- Define the phrases for each condition ---
+  phrase1_text <- paste0("Shortage volume of ", round(x / 1000, 0), " kaf")
+  phrase2_text <- paste0("DCP contribution of ", round(y / 1000, 0), " kaf by CAWCD")
+  phrase3_text <- paste0("ICS delivery of ", round(z / 1000, 1), " kaf")
+  
+  active_phrases <- character(0)
+  if (condition1_met) {
+    active_phrases <- c(active_phrases, phrase1_text)
+  }
+  if (condition2_met) {
+    active_phrases <- c(active_phrases, phrase2_text)
+  }
+  if (condition3_met) {
+    active_phrases <- c(active_phrases, phrase3_text)
+  }
+  
+  num_active_conditions <- length(active_phrases)
+  reductions_scen_all <- ""
+  
+  if (num_active_conditions == 1) {
+    reductions_scen_all <- active_phrases[1]
+  } else if (num_active_conditions == 2) {
+    reductions_scen_all <- paste0(active_phrases[1], ", and ", active_phrases[2])
+  } else if (num_active_conditions == 3) {
+    reductions_scen_all <- paste0(active_phrases[1], ", ", active_phrases[2], ", and ", active_phrases[3])
+  }
+  
+  # Return the two values as a list
+  return(list(addreductions = addreductions, reductions_scen_all = reductions_scen_all))
+}
+
+#################################
