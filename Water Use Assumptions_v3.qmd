@@ -14,9 +14,24 @@ filters:
 # Set echo=FALSE to hide code, warning=FALSE to hide warnings, message=FALSE to hide messages
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
+packages_needed <- c("tidyverse", "knitr", "readxl", "janitor", "stringr",
+                     "flextable", "officer", "zoo")
+
+# Loop through the package list and install if not already installed
+for (pkg in packages_needed) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg)
+  }
+}
+
 library(tidyverse) # To use tidyverse functions
 library(knitr)     # For kable tables
 library(readxl)
+library(janitor)
+library(stringr)
+library(flextable)
+library(officer)
+library(zoo)
 
 source("helper-functions.R")
 
@@ -1488,39 +1503,228 @@ if (exists("createWaterSav") && createWaterSav) {
 * Projected ICS Total Storage at the end of CY 2027: **2.687 maf**
 * Projected ICS Storage Balances at the end of each calendar year in the study are as follows:
 
-| State | 2025      | 2026      | 2027      |
-|-------|-----------|-----------|-----------|
-| AZ    | 616,332   | 683,215   | 648,710   |
-| CA    | 1,440,291 | 1,447,504 | 1,442,626 |
-| NV    | 498,522   | 516,704   | 595,904   |
-| Total | 2,555,145 | 2,647,423 | 2,687,240 |
-
-#### ICS Totals Table (Formatted with R)
-
-Here's an example of how you could create the ICS Totals table using an R code chunk with the `knitr` package for a nicer output.
+```{=openxml}
+<w:p><w:r><w:br/></w:r></w:p>
+```
 
 ```{r ics-table}
 # The global options echo=FALSE, warning=FALSE, message=FALSE from the setup chunk will apply here
 # Load the knitr package if you haven't in the setup chunk
-if (!requireNamespace("knitr", quietly = TRUE)) {
-  install.packages("knitr")
-}
-library(knitr)
+data <- find_rows_containing_string(sct_data, "Bank_")
 
-# Create a data frame for the ICS Totals
-ics_data <- data.frame(
-  State = c("AZ", "CA", "NV", "Total"),
-  `2025` = c(616332, 1440291, 498522, 2555145),
-  `2026` = c(683215, 1447504, 516704, 2647423),
-  `2027` = c(648710, 1442626, 595904, 2687240)
+transformed_data <- data %>%
+  mutate(Item = stringr::str_sub(Item, -2)) %>%
+  rename_with(~ifelse(. == "Item", "State (volumes in AF)", sub("^CY", "", .))) %>%
+  janitor::adorn_totals(where = "row", fill = "-", na.rm = TRUE, name = "Total")
+
+# --- Create and Style the flextable for DOCX ---
+# Identify numeric columns by name (excluding the 'State' column)
+numeric_cols <- setdiff(names(transformed_data), "State (volumes in AF)")
+
+ft <- flextable(transformed_data)
+
+ft <- colformat_num(
+  x = ft,
+  j = numeric_cols,
+  big.mark = ",",
+  digits = 0,
+  na_str = ""
 )
 
-# Print the table using kable
-# For docx output, kable will automatically choose an appropriate format.
-# The 'format = "pipe"' is more for Markdown/HTML.
-# We can let kable decide or explicitly use 'format = "pandoc"' or 'format = "simple"' for wider compatibility if needed.
-kable(ics_data, caption = "Projected ICS Storage Balances (kaf)", col.names = c("State", "2025 (kaf)", "2026 (kaf)", "2027 (kaf)"))
+ft <- bold(ft, part = "header", bold = TRUE) # Bolds the entire header
+ft <- bold(ft, i = nrow(transformed_data), part = "body", bold = TRUE) # Bolds the total row
+
+border_style <- fp_border(color = "black", width = 1)
+ft <- border_remove(x = ft)
+ft <- border_outer(x = ft, part = "all", border = border_style)
+ft <- border_inner_h(x = ft, part = "all", border = border_style)
+ft <- border_inner_v(x = ft, part = "all", border = border_style)
+
+ft <- padding(ft, padding = 2, part = "all") # Reduced cell padding
+
+# Alternatively, for more control:
+# ft <- padding(ft,
+#               padding.top = 1,
+#               padding.bottom = 1,
+#               padding.left = 3,  # Default is often 5pt
+#               padding.right = 3, # Default is often 5pt
+#               part = "all")
+
+# Center align header text for numeric columns
+ft <- align(
+  x = ft,
+  j = numeric_cols,   # Target only the numeric columns
+  align = "center",   # Set alignment to center
+  part = "all"     # Apply to the header part only
+)
+
+# Set font size for all cells in the table to 10pt
+ft <- fontsize(
+  x = ft,
+  size = 10,        # Font size in points
+  part = "all"      # Apply to header and body
+)
+
+
+ft <- autofit(ft) # Autofit after all styling is applied
+
+# --- Display the flextable in Quarto ---
+# Simply having `ft` as the last expression in an R code chunk
+# will render it correctly for DOCX output.
+ft
+
 ```
+
+```{=openxml}
+<w:p>
+  <w:r>
+    <w:br w:type="page"/>
+  </w:r>
+</w:p>
+```
+
+### Modeled Lower Basin Conservation Actions
+```{r}
+
+# --- 2. Define File Path and Import Data ---
+file_path <- "data/Projected State Use -APR25.xlsx"
+sheet_name <- "SysCon SummaryTable"
+excel_range <- "C79:I103"
+
+raw_excel_data <- readxl::read_excel(
+  path = file_path,
+  sheet = sheet_name,
+  range = excel_range,
+  col_names = FALSE # Read without initial column names
+)
+
+# --- 3. Prepare Data ---
+selected_raw_data_indices <- c(2, 3, 4, 5, 6, 7) 
+df_data_rows <- raw_excel_data[-1, selected_raw_data_indices]
+
+clean_col_names <- c("State", "Conservation Activity", "2025", "2026", "2027", "Total")
+colnames(df_data_rows) <- clean_col_names
+df <- df_data_rows
+
+numeric_cols <- c("2025", "2026", "2027", "Total")
+
+df <- df %>%
+  mutate(across(all_of(numeric_cols), 
+                ~round(suppressWarnings(as.numeric(as.character(.))), digits = 0)
+         ))
+
+num_data_rows <- nrow(df)
+annual_total_row_df_idx <- num_data_rows - 1 
+cumulative_total_row_df_idx <- num_data_rows 
+
+annual_total_label <- raw_excel_data[1 + annual_total_row_df_idx, 1, drop = TRUE] 
+cumulative_total_label <- raw_excel_data[1 + cumulative_total_row_df_idx, 1, drop = TRUE]
+
+if (!is.na(annual_total_label) && annual_total_label == "Annual Total") {
+  df[annual_total_row_df_idx, "Conservation Activity"] <- annual_total_label
+  df[annual_total_row_df_idx, "State"] <- ""
+}
+if (!is.na(cumulative_total_label) && cumulative_total_label == "Cumulative Total") {
+  df[cumulative_total_row_df_idx, "Conservation Activity"] <- cumulative_total_label
+  df[cumulative_total_row_df_idx, "State"] <- ""
+}
+
+# --- 4. Create Flextable ---
+ft <- flextable(df)
+
+# --- 5. Apply Styling ---
+fp_border_thin <- fp_border(color = "black", width = 1)
+fp_border_less_thick <- fp_border(color = "black", width = 1.5) 
+
+light_gray_bg_header <- "#F0F0F0" 
+zebra_gray_bg <- "#F5F5F5"     
+
+ft <- theme_zebra(ft, odd_body = "transparent", even_body = zebra_gray_bg)
+ft <- bg(ft, j = "State", bg = "transparent", part = "body") 
+
+# A. Header Styling
+ft <- bold(ft, part = "header", bold = TRUE)
+ft <- align(ft, align = "center", part = "header")
+ft <- bg(ft, bg = light_gray_bg_header, part = "header") 
+
+# B. State Column Styling
+state_merge_groups <- list(1:10, 11:18, 19:20, 21:22) 
+for (rows_to_merge in state_merge_groups) {
+  ft <- merge_at(ft, i = rows_to_merge, j = "State", part = "body")
+}
+if (length(annual_total_row_df_idx) > 0 && length(cumulative_total_row_df_idx) > 0 &&
+    cumulative_total_row_df_idx == annual_total_row_df_idx + 1) {
+  ft <- merge_at(ft, i = annual_total_row_df_idx:cumulative_total_row_df_idx, j = "State", part = "body")
+}
+
+ft <- bold(ft, j = "State", bold = TRUE, part = "body") 
+ft <- align(ft, j = "State", align = "center", part = "body")    
+ft <- valign(ft, j = "State", valign = "center", part = "body")   
+# Text rotation abandoned
+
+# C. Numeric Column Formatting & Alignment
+ft <- colformat_num(ft, j = numeric_cols, big.mark = ",", digits = 0, na_str = "") 
+ft <- align(ft, j = numeric_cols, align = "right", part = "body")
+if(length(annual_total_row_df_idx) > 0) {
+  ft <- align(ft, i = annual_total_row_df_idx, j = numeric_cols, align = "right", part = "body")
+}
+if(length(cumulative_total_row_df_idx) > 0) {
+  ft <- align(ft, i = cumulative_total_row_df_idx, j = numeric_cols, align = "right", part = "body")
+}
+
+# D. "Annual Total" & "Cumulative Total" Row Styling
+if(length(annual_total_row_df_idx) > 0) {
+  ft <- bold(ft, i = annual_total_row_df_idx, bold = TRUE, part = "body")
+  ft <- align(ft, i = annual_total_row_df_idx, j = "Conservation Activity", align = "left", part = "body")
+}
+if(length(cumulative_total_row_df_idx) > 0) {
+  ft <- bold(ft, i = cumulative_total_row_df_idx, bold = TRUE, part = "body")
+  ft <- align(ft, i = cumulative_total_row_df_idx, j = "Conservation Activity", align = "left", part = "body")
+}
+
+# E. General Borders & Specific Thick Horizontal Lines
+ft <- border_remove(ft) # Clear all existing borders first
+
+# Apply general inner borders (thin)
+ft <- border_inner_h(ft, border = fp_border_thin, part = "all") 
+ft <- border_inner_v(ft, border = fp_border_thin, part = "all") 
+
+# Apply outer border for the whole table (using new "less thick")
+ft <- border_outer(ft, border = fp_border_less_thick, part = "all") 
+
+# Re-apply specific less_thick hlines (these will override inner thin ones where they apply)
+ft <- hline_bottom(ft, part = "header", border = fp_border_less_thick) 
+
+hline_group_separator_indices <- c(10, 18, 20, 22) 
+ft <- hline(ft, i = hline_group_separator_indices, border = fp_border_less_thick, part = "body")
+
+# Ensure bottom border of the entire last data row is less_thick
+if (nrow(df) > 0) {
+  ft <- hline(ft, i = cumulative_total_row_df_idx, border = fp_border_less_thick, part = "body")
+}
+
+# **REMOVED THE style() CALL THAT WAS HERE**
+# The border_outer() and the hline() for the last row (above) should collectively 
+# ensure the correct left and bottom borders for the State column's last cell.
+
+# F. Fontsize, Padding, and Line Spacing
+ft <- fontsize(ft, size = 9, part = "all")
+ft <- padding(ft, padding.top = 2, padding.bottom = 2, padding.left = 4, padding.right = 4, part = "all")
+ft <- line_spacing(ft, space = 1.2, part = "all") 
+
+# G. Initial Widths & Autofit
+if (ncol(df) == 6) {
+    ft <- width(ft, j = "State", width = 0.5) 
+    ft <- width(ft, j = "Conservation Activity", width = 2.8)
+    ft <- width(ft, j = c("2025", "2026", "2027", "Total"), width = 0.75)
+}
+#ft <- autofit(ft)
+
+# --- 6. Output Flextable ---
+ft
+
+```
+
 
 ## Notes and Disclaimers
 
