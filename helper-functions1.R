@@ -1,9 +1,13 @@
-# Function to read Projected State Use excel data and process it
+
+## Function to read Projected State Use excel data and process it ########
 process_excel_data <- function(file_path_arg, sheet_name_arg, data_range_arg) {
   
   excel_data <- tryCatch({
-    readxl::read_excel(path = file_path_arg, sheet = sheet_name_arg, range = data_range_arg)
-  }, error = function(e) {
+    readxl::read_excel(path = file_path_arg, 
+                       sheet = sheet_name_arg, 
+                       range = data_range_arg)
+  }, 
+  error = function(e) {
     stop(paste("Error reading Excel file:", e$message))
     return(NULL) # Should not reach here due to stop()
   })
@@ -74,9 +78,9 @@ process_excel_data <- function(file_path_arg, sheet_name_arg, data_range_arg) {
   return(excel_data)
 }
 
-#########################################################################
 
-########## Function to find rows containing a string ####################
+
+## Function to find rows containing a string ####################
 
 find_rows_containing_string <- function(data_tibble, search_term) {
   # --- Input Validations ---
@@ -146,7 +150,7 @@ find_rows_containing_string <- function(data_tibble, search_term) {
   return(result_tibble)
 }
 
-################################################################
+## Remove NA rows in dataframe ################################################
 remove_all_na_rows <- function(input_tibble) {
   # Check if the input is a tibble or data frame
   if (!is.data.frame(input_tibble)) {
@@ -164,9 +168,8 @@ remove_all_na_rows <- function(input_tibble) {
   
   return(cleaned_tibble)
 }
-#####################################################
 
-######################################################
+## Function to condition replace items #########################################
 
 replace_items_conditional <- function(data_tibble,
                                       lookup_table,
@@ -302,7 +305,6 @@ replace_items_conditional <- function(data_tibble,
   return(output_tibble)
 }
 
-###########################################################
 
 ####### Function to compute AZ reduction scenarios #########
 
@@ -362,10 +364,7 @@ calculate_AZ_reductions <- function(year, sct_data) {
   return(list(addreductions = addreductions, reductions_scen_all = reductions_scen_all))
 }
 
-#################################
-
-
-### Get SCT data ###################################################
+## Get SCT data ###################################################
 if (!file.exists(file_path2)) {
   stop(paste("Error: The file was not found at the specified path:", file_path2))
 }
@@ -449,7 +448,7 @@ cons_NonCAWCD_tot <- cons_NonCAWCD %>%
 
 cons_CAWCD <- tryCatch({
   readxl::read_excel(path = file_path, sheet = sheet_cons, range = rangeCAWCD)
-}, error = function(e) {
+  }, error = function(e) {
   stop(paste("Error reading Excel file:", e$message))
   return(NULL) # Should not reach here due to stop()
 })
@@ -525,9 +524,7 @@ cons_NonCAWCD_CY3 <- cons_NonCAWCD_filt %>%
   filter(.[[column_number+2]] > 0) %>% 
   select(1,all_of(column_number+2))
 
-##############################################################################
-
-##### ICS Table ########
+## Create ICS Table ################################################
 ics_data <- find_rows_containing_string(sct_data, "Bank_")
 
 transformed_data <- ics_data %>%
@@ -561,14 +558,6 @@ ftics <- border_inner_v(x = ftics, part = "all", border = border_style)
 
 ftics <- padding(ftics, padding = 2, part = "all") # Reduced cell padding
 
-# Alternatively, for more control:
-# ftics <- padding(ftics,
-#               padding.top = 1,
-#               padding.bottom = 1,
-#               padding.left = 3,  # Default is often 5pt
-#               padding.right = 3, # Default is often 5pt
-#               part = "all")
-
 # Center align header text for numeric columns
 ftics <- align(
   x = ftics,
@@ -588,7 +577,7 @@ ftics <- fontsize(
 ftics <- autofit(ftics) # Autofit after all styling is applied
 
 
-###### Conservation Table ##################################
+## Conservation Table #######################################
 
 # --- 2. Define File Path and Import Data ---
 file_path <- "data/Projected State Use -APR25.xlsx"
@@ -736,4 +725,3 @@ if (ncol(df) == 6) {
 }
 #ft <- autofit(ft)
 
-##################################################################
