@@ -6,7 +6,9 @@ setwd("C:/Temp/Water-Use-Assumptions")
 library(quarto)
 
 param_scenario <- "Min"
-param_mon_year <- "April 2025"
+param_mon_year <- "June 2025"
+proj_state_use_file <- "data/Projected State Use -JUN25.xlsx"
+sct_data_file <- "data/JUN25-Min.xlsx"
 
 desired_output_filename <- paste0('24-MS LB Water Use Projections - ',
                                   param_mon_year, ' ',
@@ -17,11 +19,13 @@ desired_output_filename <- paste0('24-MS LB Water Use Projections - ',
 
 # --- Render the Quarto document ---
 quarto_render(
-  input = "Water Use Assumptions.qmd",  
+  input = "Water Use Assumptions_v5.qmd",  
   output_file = desired_output_filename,
   execute_params = list(
     scenario = param_scenario,
-    mon_year = param_mon_year
+    mon_year = param_mon_year,
+    proj_state_use = proj_state_use_file,
+    sct_data = sct_data_file
     
   )
 )

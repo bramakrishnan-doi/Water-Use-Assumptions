@@ -525,6 +525,7 @@ cons_NonCAWCD_CY3 <- cons_NonCAWCD_filt %>%
   select(1,all_of(column_number+2))
 
 ## Create ICS Table ################################################
+
 ics_data <- find_rows_containing_string(sct_data, "Bank_")
 
 transformed_data <- ics_data %>%
@@ -536,19 +537,32 @@ transformed_data <- ics_data %>%
 # Identify numeric columns by name (excluding the 'State' column)
 numeric_cols <- setdiff(names(transformed_data), "State (volumes in AF)")
 
+
+# --- REVISED SECTION ---
+# 1. Force columns to be numeric. This converts any text (like '-') to NA.
+transformed_data <- transformed_data %>%
+  mutate(across(all_of(numeric_cols), as.numeric))
+
+# 2. Manually round the data in the numeric columns to 0 decimal places.
+transformed_data <- transformed_data %>%
+  mutate(across(all_of(numeric_cols), ~round(., digits = 0)))
+# --- END REVISED SECTION ---
+
+
 ftics <- flextable(transformed_data)
 
+# Use colformat_num for formatting (like adding commas), the rounding is already done.
 ftics <- colformat_num(
   x = ftics,
   j = numeric_cols,
   big.mark = ",",
-  digits = 0,
+  digits = 0, # Keep this for consistency
   na_str = ""
 )
 
-ftics <- bold(ftics, part = "header", bold = TRUE) # Bolds the entire header
-# Bolds the total row
-ftics <- bold(ftics, i = nrow(transformed_data), part = "body", bold = TRUE) 
+# --- The rest of your styling code remains the same ---
+ftics <- bold(ftics, part = "header", bold = TRUE)
+ftics <- bold(ftics, i = nrow(transformed_data), part = "body", bold = TRUE)
 
 border_style <- fp_border(color = "black", width = 1)
 ftics <- border_remove(x = ftics)
@@ -556,38 +570,91 @@ ftics <- border_outer(x = ftics, part = "all", border = border_style)
 ftics <- border_inner_h(x = ftics, part = "all", border = border_style)
 ftics <- border_inner_v(x = ftics, part = "all", border = border_style)
 
-ftics <- padding(ftics, padding = 2, part = "all") # Reduced cell padding
+ftics <- padding(ftics, padding = 2, part = "all")
 
-# Center align header text for numeric columns
 ftics <- align(
   x = ftics,
-  j = numeric_cols,   # Target only the numeric columns
-  align = "center",   # Set alignment to center
-  part = "all"     # Apply to the header part only
+  # j = numeric_cols,
+  align = "center",
+  part = "all"
 )
 
-# Set font size for all cells in the table to 10pt
 ftics <- fontsize(
   x = ftics,
-  size = 10,        # Font size in points
-  part = "all"      # Apply to header and body
+  size = 10,
+  part = "all"
 )
 
+ftics <- autofit(ftics)
 
-ftics <- autofit(ftics) # Autofit after all styling is applied
+# ics_data <- find_rows_containing_string(sct_data, "Bank_")
+# 
+# transformed_data <- ics_data %>%
+#   mutate(Item = stringr::str_sub(Item, -2)) %>%
+#   rename_with(~ifelse(. == "Item", "State (volumes in AF)", sub("^CY", "", .))) %>%
+#   janitor::adorn_totals(where = "row", fill = "-", na.rm = TRUE, name = "Total")
+# 
+# # --- Create and Style the flextable for DOCX ---
+# # Identify numeric columns by name (excluding the 'State' column)
+# numeric_cols <- setdiff(names(transformed_data), "State (volumes in AF)")
+# 
+# # FIX: Coerce columns back to numeric after totaling
+# # This turns any non-numeric values (e.g., "-") into NA
+# transformed_data <- transformed_data %>%
+#   mutate(across(all_of(numeric_cols), as.numeric))
+# 
+# ftics <- flextable(transformed_data)
+# 
+# ftics <- colformat_num(
+#   x = ftics,
+#   j = numeric_cols,
+#   big.mark = ",",
+#   digits = 0,
+#   na_str = ""
+# )
+# 
+# ftics <- bold(ftics, part = "header", bold = TRUE) # Bolds the entire header
+# # Bolds the total row
+# ftics <- bold(ftics, i = nrow(transformed_data), part = "body", bold = TRUE) 
+# 
+# border_style <- fp_border(color = "black", width = 1)
+# ftics <- border_remove(x = ftics)
+# ftics <- border_outer(x = ftics, part = "all", border = border_style)
+# ftics <- border_inner_h(x = ftics, part = "all", border = border_style)
+# ftics <- border_inner_v(x = ftics, part = "all", border = border_style)
+# 
+# ftics <- padding(ftics, padding = 2, part = "all") # Reduced cell padding
+# 
+# # Center align header text for numeric columns
+# ftics <- align(
+#   x = ftics,
+#   j = numeric_cols,   # Target only the numeric columns
+#   align = "center",   # Set alignment to center
+#   part = "all"     # Apply to the header part only
+# )
+# 
+# # Set font size for all cells in the table to 10pt
+# ftics <- fontsize(
+#   x = ftics,
+#   size = 10,        # Font size in points
+#   part = "all"      # Apply to header and body
+# )
+# 
+# 
+# ftics <- autofit(ftics) # Autofit after all styling is applied
 
 
 ## Conservation Table #######################################
 
 # --- 2. Define File Path and Import Data ---
-file_path <- "data/Projected State Use -APR25.xlsx"
-sheet_name <- "SysCon SummaryTable"
-excel_range <- "C79:I103"
+# file_path <- "data/Projected State Use -APR25.xlsx"
+# sheet_name <- "SysCon SummaryTable"
+# excel_range <- "C79:I103"
 
 raw_excel_data <- readxl::read_excel(
   path = file_path,
-  sheet = sheet_name,
-  range = excel_range,
+  sheet = sheet_cons_table,
+  range = cons_table_range,
   col_names = FALSE # Read without initial column names
 )
 
@@ -725,3 +792,102 @@ if (ncol(df) == 6) {
 }
 #ft <- autofit(ft)
 
+## Conservation Summary Table ###################################################
+
+selected_raw_data_indices_summary <- c(2, 3, 4, 5, 6, 7) # Excel D, E, F, G, H, I
+df_source_rows <- raw_excel_data[-1, selected_raw_data_indices_summary]
+
+clean_col_names_summary <- c("State", "Conservation Activity", 
+                             "2025", "2026", "2027", "Total")
+colnames(df_source_rows) <- clean_col_names_summary
+df_source_for_summary <- df_source_rows
+
+numeric_cols_summary <- c("2025", "2026", "2027", "Total")
+df_source_for_summary <- df_source_for_summary %>%
+  mutate(across(all_of(numeric_cols_summary), 
+                ~ceiling(suppressWarnings(as.numeric(as.character(.)))) 
+  ))
+
+# --- 2. Prepare Data for Aggregation ---
+df_aggregated <- df_source_for_summary %>%
+  mutate(State_Group = zoo::na.locf(State, na.rm = FALSE))
+
+activity_data_rows <- df_aggregated[1:20, ] 
+
+summary_states <- activity_data_rows %>%
+  filter(State_Group %in% c("AZ", "CA", "NV")) %>%
+  group_by(State = State_Group) %>% 
+  summarise(
+    `2025` = sum(`2025`, na.rm = TRUE),
+    `2026` = sum(`2026`, na.rm = TRUE),
+    `2027` = sum(`2027`, na.rm = TRUE),
+    `Total` = sum(`Total`, na.rm = TRUE), 
+    .groups = "drop"
+  )
+
+# --- 3. Calculate Summary Totals ---
+annual_total_calc <- summary_states %>%
+  summarise(
+    State = "Annual Total",
+    across(all_of(numeric_cols_summary), ~sum(., na.rm = TRUE))
+  )
+
+cumulative_total_calc <- tibble(
+  State = "Cumulative Total",
+  `2025` = annual_total_calc$`2025`,
+  `2026` = annual_total_calc$`2025` + annual_total_calc$`2026`,
+  `2027` = annual_total_calc$`2025` + annual_total_calc$`2026` + annual_total_calc$`2027`,
+  # Set the "Total" column for this row to NA
+  `Total` = NA_real_ 
+)
+
+# --- 4. Combine Data ---
+final_summary_df <- bind_rows(summary_states, annual_total_calc, cumulative_total_calc)
+
+# --- 5. Create and Style Summary Flextable ---
+ft_summary <- flextable(final_summary_df)
+
+fp_border_s_thin <- fp_border(color = "black", width = 1)
+fp_border_s_less_thick <- fp_border(color = "black", width = 1.5)
+
+# A. Header Styling
+ft_summary <- bold(ft_summary, part = "header", bold = TRUE)
+ft_summary <- align(ft_summary, align = "center", part = "header") # Header cells centered
+
+# B. Row Label Styling (State column and Total Rows)
+ft_summary <- bold(ft_summary, j = "State", bold = TRUE, part = "body") 
+idx_AT_summary <- which(final_summary_df$State == "Annual Total")
+idx_CT_summary <- which(final_summary_df$State == "Cumulative Total")
+if(length(idx_AT_summary) > 0) {
+  ft_summary <- bold(ft_summary, i = idx_AT_summary, bold = TRUE, part = "body")
+}
+if(length(idx_CT_summary) > 0) {
+  ft_summary <- bold(ft_summary, i = idx_CT_summary, bold = TRUE, part = "body")
+}
+
+# C. Numeric Column Formatting & Global Body Alignment
+# na_str = "" will make NAs appear blank
+ft_summary <- colformat_num(ft_summary, j = numeric_cols_summary, big.mark = ",", digits = 0, na_str = "") 
+ft_summary <- align(ft_summary, align = "center", part = "body") # Center all body content
+
+# D. Borders
+ft_summary <- border_remove(ft_summary)
+ft_summary <- border_outer(ft_summary, border = fp_border_s_less_thick, part = "all") 
+ft_summary <- border_inner_h(ft_summary, border = fp_border_s_thin, part = "all") 
+ft_summary <- border_inner_v(ft_summary, border = fp_border_s_thin, part = "all") 
+ft_summary <- hline_bottom(ft_summary, part = "header", border = fp_border_s_less_thick)
+if(length(idx_AT_summary) > 0) {
+  ft_summary <- border(ft_summary, 
+                       i = idx_AT_summary, 
+                       border.top = fp_border_s_less_thick, 
+                       part = "body")
+}
+
+# E. Fontsize and Padding
+ft_summary <- fontsize(ft_summary, size = 10, part = "all") 
+ft_summary <- padding(ft_summary, padding = 4, part = "all") 
+
+# F. Column Widths & Autofit
+ft_summary <- width(ft_summary, j = "State", width = 1.5) 
+ft_summary <- width(ft_summary, j = c("2025", "2026", "2027", "Total"), width = 1)
+ft_summary <- autofit(ft_summary) 
