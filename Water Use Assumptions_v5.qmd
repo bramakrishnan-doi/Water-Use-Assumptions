@@ -117,7 +117,7 @@ cons_table_range = params$cons_summary_rng
 #####################################################################
 # Access the parameter value
 selected_scenario <- params$scenario
-source("helper-functions1.R")
+source("helper-functions_v1.R")
 
 # conditional data loading 
 if (selected_scenario == "Most") {
@@ -1568,6 +1568,6 @@ ft_summary
 ```
 ## Notes and Disclaimers
 
-* `<w:r><w:rPr><w:highlight w:val="yellow"/><w:i/></w:rPr><w:t>Modeled Conservation volumes reflect executed agreements and/or current operational projections/assumptions and are subject to change. Additional conservation activities are being considered. After new agreements are finalized and executed, these additional activities will be included in Reclamation’s operational modeling.
-* Projected SEIS ROD Reservoir Protection Volume is 3.631 from 2023 through 2026.</w:t></w:r>`{=openxml}
+* Modeled Conservation volumes reflect executed agreements and/or current operational projections/assumptions and are subject to change. Additional conservation activities are being considered. After new agreements are finalized and executed, these additional activities will be included in Reclamation’s operational modeling.
+* Projected SEIS ROD Reservoir Protection Volume is 3.631 from 2023 through 2026.
 
