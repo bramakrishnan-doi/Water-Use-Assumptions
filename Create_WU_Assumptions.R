@@ -1,7 +1,7 @@
 ## This code will generate the Water Use Assumptions Document in your current working directory.
 ## change it using setwd() accordingly
 
-setwd("C:/Temp/Water-Use-Assumptions")
+# setwd("C:/Temp/Water-Use-Assumptions")
 
 library(quarto)
 
