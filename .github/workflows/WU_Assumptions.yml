@@ -15,9 +15,6 @@ jobs:
         use-public-rspm: true
      - name: Set up Quarto
        uses: quarto-dev/quarto-actions/setup@v2
-       env:
-         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
 
     - uses: r-lib/actions/setup-pandoc@v2
 
