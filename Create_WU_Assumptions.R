@@ -6,10 +6,10 @@ setwd("C:/Temp/Water-Use-Assumptions")
 library(quarto)
 
 ## Set these parameters ###
-param_scenario <- "Min"
-param_mon_year <- "June 2025"
-proj_state_use_file <- "data/Projected State Use -JUN25.xlsx"
-sct_data_file <- "data/JUN25-Min.xlsx"
+param_scenario <- "Most"
+param_mon_year <- "July 2025"
+proj_state_use_file <- "data/Projected State Use -JUL25.xlsx"
+sct_data_file <- "data/JUL25-Most.xlsx"
 
 ## This code creates the output file name
 desired_output_filename <- paste0('24-MS LB Water Use Projections - ',
