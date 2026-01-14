@@ -62,15 +62,15 @@ params:
 # Set echo=FALSE to hide code, warning=FALSE to hide warnings, message=FALSE to hide messages
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 
-packages_needed <- c("tidyverse", "knitr", "readxl", "janitor", "stringr",
-                     "flextable", "officer", "zoo")
+# packages_needed <- c("tidyverse", "knitr", "readxl", "janitor", "stringr",
+#                      "flextable", "officer", "zoo")
 
-# Loop through the package list and install if not already installed
-for (pkg in packages_needed) {
-  if (!requireNamespace(pkg, quietly = TRUE)) {
-    install.packages(pkg)
-  }
-}
+# # Loop through the package list and install if not already installed
+# for (pkg in packages_needed) {
+#   if (!requireNamespace(pkg, quietly = TRUE)) {
+#     install.packages(pkg)
+#   }
+# }
 
 library(tidyverse) # To use tidyverse functions
 library(knitr)     # For kable tables
