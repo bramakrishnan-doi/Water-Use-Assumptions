@@ -7,9 +7,9 @@ library(quarto)
 
 ## Set these parameters ###
 param_scenario <- "Min"
-param_mon_year <- "December 2025"
-proj_state_use_file <- "data/Projected State Use-DEC25.xlsx"
-sct_data_file <- "data/DEC25-Min.xlsx"
+param_mon_year <- "January 2026"
+proj_state_use_file <- "data/Projected State Use-JAN26.xlsx"
+sct_data_file <- "data/JAN26-Min.xlsx"
 
 ## This code creates the output file name
 desired_output_filename <- paste0('24-MS LB Water Use Projections - ',
@@ -34,9 +34,9 @@ quarto_render(
 
 ## Set these parameters ###
 param_scenario <- "Most"
-param_mon_year <- "December 2025"
-proj_state_use_file <- "data/Projected State Use-DEC25.xlsx"
-sct_data_file <- "data/DEC25-Most.xlsx"
+#param_mon_year <- "January 2026"
+#proj_state_use_file <- "data/Projected State Use-DEC25.xlsx"
+sct_data_file <- "data/JAN26-Most.xlsx"
 
 ## This code creates the output file name
 desired_output_filename <- paste0('24-MS LB Water Use Projections - ',
@@ -60,17 +60,17 @@ quarto_render(
 )
 
 ## Set these parameters ###
-##param_scenario <- "Max"
+param_scenario <- "Max"
 ##param_mon_year <- "January 2026"
 ##proj_state_use_file <- "data/Projected State Use -JAN25.xlsx"
-##sct_data_file <- "data/JAN25-Most.xlsx"
+sct_data_file <- "data/JAN26-Max.xlsx"
 
 ## This code creates the output file name
-##desired_output_filename <- paste0('24-MS LB Water Use Projections - ',
-##                                  param_mon_year, ' ',
-##                                  ifelse(param_scenario == 'Most', 
-##                                        paste0(param_scenario, ' Probable.docx'), 
-##                                        paste0('Probable ', param_scenario, '.docx')))
+desired_output_filename <- paste0('24-MS LB Water Use Projections - ',
+                                  param_mon_year, ' ',
+                                  ifelse(param_scenario == 'Most', 
+                                        paste0(param_scenario, ' Probable.docx'), 
+                                        paste0('Probable ', param_scenario, '.docx')))
 
 
 # --- Render the Quarto document ---
